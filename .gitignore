@@ -1,0 +1,62 @@
+# ==========================================
+# LibroVerse - Production Git Ignore
+# ==========================================
+
+# 1. Dependency Directories
+node_modules/
+backend/node_modules/
+frontend/node_modules/
+.pnpm-store/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# 2. Environment Variables & Secrets (CRITICAL)
+.env
+.env.*
+!.env.example
+*.env.local
+*.env.development.local
+*.env.test.local
+*.env.production.local
+
+# 3. Production Builds & Distribution
+dist/
+build/
+out/
+backend/dist/
+frontend/dist/
+*.tsbuildinfo
+
+# 4. Ephemeral Files & Upload Directories
+backend/public/data/uploads/*
+!backend/public/data/uploads/.gitkeep
+public/data/uploads/*
+temp/
+tmp/
+.cache/
+.eslintcache
+.vite/
+frontend/.vite/
+
+# 5. OS & IDE Metadata
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+*.sublime-workspace
+*.sublime-project
+
+# 6. Test & Coverage Outputs
+coverage/
+.nyc_output/
+*.lcov

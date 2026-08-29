@@ -1,0 +1,374 @@
+import { NextFunction, Request, Response } from "express";
+import mongoose from "mongoose";
+import { Readable } from "node:stream";
+import cloudinary from "../config/cloudinary";
+import createHttpError from "http-errors";
+import bookModel from "./bookModel";
+import userModel from "../user/userModel";
+import authorModel from "../author/authorModel";
+import { AuthRequest } from "../middlewares/authenticate";
+
+/**
+ * Enterprise Stream Upload Helper: Streams raw Buffer directly to Cloudinary
+ * avoids saving temporary files to disk on Render / Vercel serverless containers
+ */
+const uploadStreamToCloudinary = (
+  buffer: Buffer,
+  options: {
+    folder: string;
+    resource_type: "image" | "raw" | "auto";
+    format?: string;
+    filename_override?: string;
+  }
+): Promise<any> => {
+  return new Promise((resolve, reject) => {
+    const uploadStream = cloudinary.uploader.upload_stream(
+      options,
+      (error, result) => {
+        if (error) return reject(error);
+        resolve(result);
+      }
+    );
+
+    const readable = new Readable();
+    readable._read = () => {};
+    readable.push(buffer);
+    readable.push(null);
+    readable.pipe(uploadStream);
+  });
+};
+
+/**
+ * Helper to calculate size in MB rounded to 2 decimal places
+ */
+const bytesToMb = (bytes: number): number => {
+  return Math.round((bytes / (1024 * 1024)) * 100) / 100;
+};
+
+/**
+ * Create a new eBook with Concurrent Direct In-Memory Buffer Streaming
+ */
+const createBook = async (req: Request, res: Response, next: NextFunction) => {
+  const { title, description, genre, authorNames } = req.body;
+
+  if (!genre || typeof genre !== "string" || !genre.trim()) {
+    return next(createHttpError(400, "At least one category is required to create an eBook"));
+  }
+
+  const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+  const coverFile = files?.coverImage?.[0] || files?.cover?.[0];
+  const pdfFile = files?.file?.[0] || files?.pdf?.[0];
+
+  if (!coverFile || !pdfFile) {
+    return next(createHttpError(400, "Both cover image and book PDF file are required"));
+  }
+
+  // --- Strict In-Memory Size & Mime-type Gate ---
+  const validImageMimes = ["image/jpeg", "image/png", "image/webp", "image/jpg"];
+  if (!validImageMimes.includes(coverFile.mimetype)) {
+    return next(createHttpError(400, "Cover must be a valid image (JPEG, PNG, WEBP)"));
+  }
+
+  // Cover image must be <= 2 MB
+  if (coverFile.size > 2 * 1024 * 1024) {
+    return next(createHttpError(400, "Cover image size must be 2 MB or less"));
+  }
+
+  // PDF file must be <= 10 MB
+  if (pdfFile.size > 10 * 1024 * 1024) {
+    return next(createHttpError(400, "Book PDF file size must be 10 MB or less"));
+  }
+
+  const coverSizeMb = bytesToMb(coverFile.size);
+  const pdfSizeMb = bytesToMb(pdfFile.size);
+
+  const _req = req as AuthRequest;
+  const currentUserId = new mongoose.Types.ObjectId(_req.userId);
+
+  let uploadResult: any = null;
+  let bookFileUploadResult: any = null;
+  let createdBookId: any = null;
+
+  try {
+    // Resolve standalone Author records for multiple co-authors
+    const authorIds: mongoose.Types.ObjectId[] = [];
+    if (authorNames) {
+      const namesList = Array.isArray(authorNames)
+        ? authorNames
+        : typeof authorNames === "string"
+        ? authorNames.split(",").map((n: string) => n.trim()).filter(Boolean)
+        : [];
+
+      for (const name of namesList) {
+        let existingAuthor = await authorModel.findOne({
+          name: { $regex: new RegExp(`^${name}$`, "i") },
+        });
+        if (!existingAuthor) {
+          existingAuthor = await authorModel.create({ name });
+        }
+        authorIds.push(new mongoose.Types.ObjectId(existingAuthor._id));
+      }
+    }
+
+    // --- Concurrent Direct In-Memory Buffer Streaming to Cloudinary ---
+    const coverUploadPromise = uploadStreamToCloudinary(coverFile.buffer, {
+      folder: "book-covers",
+      resource_type: "image",
+      filename_override: coverFile.originalname,
+    });
+
+    const pdfUploadPromise = uploadStreamToCloudinary(pdfFile.buffer, {
+      folder: "book-pdfs",
+      resource_type: "raw",
+      filename_override: pdfFile.originalname,
+    });
+
+    // Execute concurrently using Promise.all
+    [uploadResult, bookFileUploadResult] = await Promise.all([
+      coverUploadPromise,
+      pdfUploadPromise,
+    ]);
+
+    const coverImageUrl = uploadResult?.secure_url || uploadResult?.url;
+    const fileUrl = bookFileUploadResult?.secure_url || bookFileUploadResult?.url;
+
+    if (!coverImageUrl || !fileUrl) {
+      throw new Error("Failed to obtain Cloudinary asset URLs from stream");
+    }
+
+    // Save eBook with audit metrics and multiple co-authors
+    const newBook = await bookModel.create({
+      title: title.trim(),
+      description: description.trim(),
+      genre: genre.trim(),
+      author: currentUserId,
+      authors: authorIds,
+      coverImage: coverImageUrl,
+      file: fileUrl,
+      pdf_size_mb: pdfSizeMb,
+      cover_size_mb: coverSizeMb,
+    });
+
+    createdBookId = newBook._id;
+
+    res.status(201).json({ id: newBook._id, pdf_size_mb: pdfSizeMb, cover_size_mb: coverSizeMb });
+  } catch (err: any) {
+    console.error("Upload failure in createBook - executing rollback:", err);
+
+    // Rollback DB document
+    if (createdBookId) {
+      try {
+        await bookModel.findByIdAndDelete(createdBookId);
+      } catch (dbErr) {
+        console.error("DB Rollback Error:", dbErr);
+      }
+    }
+
+    // Rollback Cloudinary cover asset
+    if (uploadResult?.public_id) {
+      try {
+        await cloudinary.uploader.destroy(uploadResult.public_id);
+      } catch (cldErr) {
+        console.error("Cloudinary Cover Rollback Error:", cldErr);
+      }
+    }
+
+    // Rollback Cloudinary PDF asset
+    if (bookFileUploadResult?.public_id) {
+      try {
+        await cloudinary.uploader.destroy(bookFileUploadResult.public_id, {
+          resource_type: "raw",
+        });
+      } catch (cldErr) {
+        console.error("Cloudinary PDF Rollback Error:", cldErr);
+      }
+    }
+
+    return next(createHttpError(500, err?.message || "Error while uploading the eBook"));
+  }
+};
+
+/**
+ * Update an existing eBook
+ */
+const updateBook = async (req: Request, res: Response, next: NextFunction) => {
+  const { title, description, genre } = req.body;
+  const bookId = req.params.bookId;
+
+  try {
+    const book = await bookModel.findById(bookId);
+    if (!book) {
+      return next(createHttpError(404, "Book not found"));
+    }
+
+    const _req = req as AuthRequest;
+    const user = await userModel.findById(_req.userId);
+    const isAdmin = user?.role === "admin";
+
+    if (book.author.toString() !== _req.userId && !isAdmin) {
+      return next(createHttpError(403, "Unauthorized"));
+    }
+
+    const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+    const coverFile = files?.coverImage?.[0] || files?.cover?.[0];
+    const pdfFile = files?.file?.[0] || files?.pdf?.[0];
+
+    let completeCoverImage = book.coverImage;
+    let completeFileName = book.file;
+    let coverSizeMb = book.pdf_size_mb || 0;
+    let pdfSizeMb = book.cover_size_mb || 0;
+
+    // Validate size if uploading new cover image
+    if (coverFile) {
+      if (coverFile.size > 2 * 1024 * 1024) {
+        return next(createHttpError(400, "Cover image size must be 2 MB or less"));
+      }
+      const uploadRes = await uploadStreamToCloudinary(coverFile.buffer, {
+        folder: "book-covers",
+        resource_type: "image",
+        filename_override: coverFile.originalname,
+      });
+      completeCoverImage = uploadRes.secure_url || uploadRes.url;
+      coverSizeMb = bytesToMb(coverFile.size);
+    }
+
+    // Validate size if uploading new PDF file
+    if (pdfFile) {
+      if (pdfFile.size > 10 * 1024 * 1024) {
+        return next(createHttpError(400, "Book PDF must be 10 MB or less"));
+      }
+      const uploadPdfRes = await uploadStreamToCloudinary(pdfFile.buffer, {
+        folder: "book-pdfs",
+        resource_type: "raw",
+        filename_override: pdfFile.originalname,
+      });
+      completeFileName = uploadPdfRes.secure_url || uploadPdfRes.url;
+      pdfSizeMb = bytesToMb(pdfFile.size);
+    }
+
+    const updatedBook = await bookModel
+      .findOneAndUpdate(
+        { _id: bookId },
+        {
+          title: title ? title.trim() : book.title,
+          description: description ? description.trim() : book.description,
+          genre: genre ? genre.trim() : book.genre,
+          coverImage: completeCoverImage,
+          file: completeFileName,
+          cover_size_mb: coverSizeMb,
+          pdf_size_mb: pdfSizeMb,
+        },
+        { new: true }
+      )
+      .populate("author", "name email role")
+      .populate("authors", "name bio avatar_url");
+
+    res.json(updatedBook);
+  } catch (err: any) {
+    return next(createHttpError(500, err?.message || "Error while updating the eBook"));
+  }
+};
+
+/**
+ * List all eBooks
+ */
+const listBooks = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const books = await bookModel
+      .find()
+      .populate("author", "name email role")
+      .populate("authors", "name bio avatar_url")
+      .sort({ createdAt: -1 });
+    res.json(books);
+  } catch (err) {
+    return next(createHttpError(500, "Error while getting all books"));
+  }
+};
+
+/**
+ * Get a single eBook by ID
+ */
+const getSingleBook = async (req: Request, res: Response, next: NextFunction) => {
+  const bookId = req.params.bookId;
+  if (!bookId) {
+    return next(createHttpError(400, "Book ID is required"));
+  }
+
+  try {
+    const book = await bookModel
+      .findById(bookId)
+      .populate("author", "name email role")
+      .populate("authors", "name bio avatar_url");
+    if (!book) {
+      return next(createHttpError(404, "Book not found"));
+    }
+    res.json(book);
+  } catch (err) {
+    next(createHttpError(500, "Error while getting the book"));
+  }
+};
+
+/**
+ * Delete an eBook (Author or Admin)
+ */
+const deleteBook = async (req: Request, res: Response, next: NextFunction) => {
+  const bookId = req.params.bookId;
+  if (!bookId) {
+    return next(createHttpError(400, "Book ID is required"));
+  }
+
+  try {
+    const book = await bookModel.findById(bookId);
+    if (!book) {
+      return next(createHttpError(404, "Book not found"));
+    }
+
+    const _req = req as AuthRequest;
+    const user = await userModel.findById(_req.userId);
+    const isAdmin = user?.role === "admin";
+
+    if (book.author.toString() !== _req.userId && !isAdmin) {
+      return next(createHttpError(403, "Unauthorized"));
+    }
+
+    const getPublicIdFromUrl = (url: string, defaultFolder = "book-pdfs") => {
+      try {
+        const parts = url.split("/");
+        const folderIndex = parts.findIndex((p) => p === defaultFolder || p === "book-covers");
+        if (folderIndex !== -1 && folderIndex < parts.length - 1) {
+          const pathWithExt = parts.slice(folderIndex).join("/");
+          return pathWithExt.replace(/\.[^/.]+$/, "");
+        }
+        const fileWithExt = parts.at(-1) || "";
+        return `${defaultFolder}/${fileWithExt.replace(/\.[^/.]+$/, "")}`;
+      } catch {
+        return null;
+      }
+    };
+
+    const coverImagePublicId = getPublicIdFromUrl(book.coverImage, "book-covers");
+    const bookFilePublicId = getPublicIdFromUrl(book.file, "book-pdfs");
+
+    try {
+      const deletePromises: Promise<any>[] = [];
+      if (coverImagePublicId) {
+        deletePromises.push(cloudinary.uploader.destroy(coverImagePublicId));
+      }
+      if (bookFilePublicId) {
+        deletePromises.push(cloudinary.uploader.destroy(bookFilePublicId, { resource_type: "image" }));
+        deletePromises.push(cloudinary.uploader.destroy(bookFilePublicId, { resource_type: "raw" }));
+        deletePromises.push(cloudinary.uploader.destroy(`${bookFilePublicId}.pdf`, { resource_type: "raw" }));
+      }
+      await Promise.allSettled(deletePromises);
+    } catch (destroyErr) {
+      console.warn("Could not delete file from Cloudinary:", destroyErr);
+    }
+
+    await bookModel.findByIdAndDelete(bookId);
+    res.sendStatus(204);
+  } catch (err) {
+    next(createHttpError(500, "Error while deleting the book"));
+  }
+};
+
+export { createBook, updateBook, listBooks, getSingleBook, deleteBook };
