@@ -33,14 +33,12 @@ import { useToast } from '../../components/ui/ToastContext';
 import type { Book, User } from '../../types';
 
 interface AdminDashboardPageProps {
-  onBackToStore: () => void;
   onOpenUpload: () => void;
   onEditBook: (book: Book) => void;
   onReadBook: (book: Book) => void;
 }
 
 export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
-  onBackToStore,
   onOpenUpload,
   onEditBook,
   onReadBook,
@@ -272,14 +270,6 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
 
         {/* Sidebar Footer & User Card */}
         <div className="p-4 border-t border-slate-100 space-y-3">
-          <button
-            onClick={onBackToStore}
-            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-colors cursor-pointer"
-          >
-            <Compass className="w-4 h-4 text-indigo-600" />
-            <span>Switch to Reader Store</span>
-          </button>
-
           <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-bold text-slate-400 uppercase">Administrator</span>

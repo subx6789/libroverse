@@ -351,7 +351,7 @@ const getSuggestedUsers = async (req: Request, res: Response, next: NextFunction
     const _req = req as AuthRequest;
     const currentUserId = _req.userId;
 
-    const filter: any = { isBanned: { $ne: true } };
+    const filter: any = { isBanned: { $ne: true }, role: { $ne: "admin" } };
     if (currentUserId) {
       filter._id = { $ne: new mongoose.Types.ObjectId(currentUserId) };
     }
@@ -397,6 +397,7 @@ const searchUsers = async (req: Request, res: Response, next: NextFunction) => {
           { bio: { $regex: query, $options: "i" } },
         ],
         isBanned: { $ne: true },
+        role: { $ne: "admin" },
       })
       .select("-password")
       .limit(10)

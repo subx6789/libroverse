@@ -1,30 +1,39 @@
 import React, { useState } from 'react';
 import {
   BookOpen,
-  PlusCircle,
   LogOut,
-  ShieldAlert,
   Search,
   Users,
   Library,
+  Compass,
+  Home,
+  User as UserIcon,
+  ShieldCheck,
+  Mail,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useBookStore } from '../../store/useBookStore';
 
 interface NavbarProps {
-  onOpenAuth: () => void;
-  onOpenUpload: () => void;
+  onOpenAuth: (mode?: 'login' | 'register') => void;
   onOpenAdmin: () => void;
-  currentPublicTab: 'catalog' | 'community';
-  onSelectPublicTab: (tab: 'catalog' | 'community') => void;
+  // Navigation tabs for unauthenticated (guest)
+  guestTab?: 'landing' | 'about' | 'contact';
+  onSelectGuestTab?: (tab: 'landing' | 'about' | 'contact') => void;
+  // Navigation tabs for authenticated reader
+  readerTab?: 'home' | 'catalog' | 'community';
+  onSelectReaderTab?: (tab: 'home' | 'catalog' | 'community') => void;
+  onOpenProfile?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
   onOpenAuth,
-  onOpenUpload,
   onOpenAdmin,
-  currentPublicTab,
-  onSelectPublicTab,
+  guestTab = 'landing',
+  onSelectGuestTab,
+  readerTab = 'home',
+  onSelectReaderTab,
+  onOpenProfile,
 }) => {
   const { user, isAuthenticated, logout } = useAuthStore();
   const { searchQuery, setSearchQuery } = useBookStore();
@@ -36,10 +45,16 @@ export const Navbar: React.FC<NavbarProps> = ({
     <header className="sticky top-0 z-40 w-full border-b border-slate-200 bg-white/95 backdrop-blur-md transition-all">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
         
-        {/* Brand Logo & View Switcher */}
+        {/* Brand Logo */}
         <div className="flex items-center gap-6 shrink-0">
           <div
-            onClick={() => onSelectPublicTab('catalog')}
+            onClick={() => {
+              if (isAuthenticated && onSelectReaderTab) {
+                onSelectReaderTab('home');
+              } else if (onSelectGuestTab) {
+                onSelectGuestTab('landing');
+              }
+            }}
             className="flex items-center gap-2.5 cursor-pointer group"
           >
             <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold shadow-xs transition-transform group-hover:scale-105">
@@ -50,41 +65,93 @@ export const Navbar: React.FC<NavbarProps> = ({
                 LibroVerse
               </span>
               <span className="text-[10px] block font-semibold text-slate-400 -mt-1">
-                eBooks & Community
+                {isAuthenticated ? (isAdmin ? 'Admin Console' : 'Reader Portal') : 'Digital eBooks'}
               </span>
             </div>
           </div>
 
-          {/* Navigation Pill Switcher: Library Catalog vs Community Feed */}
-          <nav className="hidden sm:flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-bold">
-            <button
-              onClick={() => onSelectPublicTab('catalog')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                currentPublicTab === 'catalog'
-                  ? 'bg-white text-indigo-600 shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <Library className="w-3.5 h-3.5" />
-              <span>Library Catalog</span>
-            </button>
+          {/* Navigation for Authenticated Readers */}
+          {isAuthenticated && !isAdmin && onSelectReaderTab && (
+            <nav className="hidden sm:flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-bold">
+              <button
+                onClick={() => onSelectReaderTab('home')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                  readerTab === 'home'
+                    ? 'bg-white text-indigo-600 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Home className="w-3.5 h-3.5" />
+                <span>Home Hub</span>
+              </button>
 
-            <button
-              onClick={() => onSelectPublicTab('community')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                currentPublicTab === 'community'
-                  ? 'bg-white text-indigo-600 shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <Users className="w-3.5 h-3.5" />
-              <span>Reader Community</span>
-            </button>
-          </nav>
+              <button
+                onClick={() => onSelectReaderTab('catalog')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                  readerTab === 'catalog'
+                    ? 'bg-white text-indigo-600 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Library className="w-3.5 h-3.5" />
+                <span>Library Catalog</span>
+              </button>
+
+              <button
+                onClick={() => onSelectReaderTab('community')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                  readerTab === 'community'
+                    ? 'bg-white text-indigo-600 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Users className="w-3.5 h-3.5" />
+                <span>Reader Community</span>
+              </button>
+            </nav>
+          )}
+
+          {/* Navigation for Unauthenticated Guests */}
+          {!isAuthenticated && onSelectGuestTab && (
+            <nav className="hidden sm:flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-bold">
+              <button
+                onClick={() => onSelectGuestTab('landing')}
+                className={`px-3.5 py-1.5 rounded-lg transition-all cursor-pointer ${
+                  guestTab === 'landing'
+                    ? 'bg-white text-indigo-600 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Home
+              </button>
+
+              <button
+                onClick={() => onSelectGuestTab('about')}
+                className={`px-3.5 py-1.5 rounded-lg transition-all cursor-pointer ${
+                  guestTab === 'about'
+                    ? 'bg-white text-indigo-600 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                About Us
+              </button>
+
+              <button
+                onClick={() => onSelectGuestTab('contact')}
+                className={`px-3.5 py-1.5 rounded-lg transition-all cursor-pointer ${
+                  guestTab === 'contact'
+                    ? 'bg-white text-indigo-600 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Contact Us
+              </button>
+            </nav>
+          )}
         </div>
 
-        {/* Global Search Bar (When on catalog) */}
-        {currentPublicTab === 'catalog' && (
+        {/* Global Search Bar (Only when on Catalog) */}
+        {isAuthenticated && !isAdmin && readerTab === 'catalog' && (
           <div className="flex-1 max-w-md hidden md:block">
             <div className="relative group">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none transition-colors" />
@@ -107,102 +174,140 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
         )}
 
-        {/* Action Buttons & Auth */}
+        {/* Right Actions / Auth Area */}
         <div className="flex items-center gap-2 sm:gap-3">
           
-          {/* Mobile view switch pills */}
-          <div className="flex sm:hidden items-center gap-1 bg-slate-100 p-0.5 rounded-lg text-xs font-bold">
-            <button
-              onClick={() => onSelectPublicTab('catalog')}
-              className={`px-2 py-1 rounded ${currentPublicTab === 'catalog' ? 'bg-white text-indigo-600 shadow-xs' : 'text-slate-600'}`}
-            >
-              Books
-            </button>
-            <button
-              onClick={() => onSelectPublicTab('community')}
-              className={`px-2 py-1 rounded ${currentPublicTab === 'community' ? 'bg-white text-indigo-600 shadow-xs' : 'text-slate-600'}`}
-            >
-              Feed
-            </button>
-          </div>
+          {/* Mobile switcher for guests */}
+          {!isAuthenticated && onSelectGuestTab && (
+            <div className="flex sm:hidden items-center gap-1 bg-slate-100 p-0.5 rounded-lg text-xs font-bold">
+              <button
+                onClick={() => onSelectGuestTab('landing')}
+                className={`px-2 py-1 rounded ${guestTab === 'landing' ? 'bg-white text-indigo-600 shadow-xs' : 'text-slate-600'}`}
+              >
+                Home
+              </button>
+              <button
+                onClick={() => onSelectGuestTab('about')}
+                className={`px-2 py-1 rounded ${guestTab === 'about' ? 'bg-white text-indigo-600 shadow-xs' : 'text-slate-600'}`}
+              >
+                About
+              </button>
+              <button
+                onClick={() => onSelectGuestTab('contact')}
+                className={`px-2 py-1 rounded ${guestTab === 'contact' ? 'bg-white text-indigo-600 shadow-xs' : 'text-slate-600'}`}
+              >
+                Contact
+              </button>
+            </div>
+          )}
+
+          {/* Mobile switcher for readers */}
+          {isAuthenticated && !isAdmin && onSelectReaderTab && (
+            <div className="flex sm:hidden items-center gap-1 bg-slate-100 p-0.5 rounded-lg text-xs font-bold">
+              <button
+                onClick={() => onSelectReaderTab('home')}
+                className={`px-2 py-1 rounded ${readerTab === 'home' ? 'bg-white text-indigo-600 shadow-xs' : 'text-slate-600'}`}
+              >
+                Home
+              </button>
+              <button
+                onClick={() => onSelectReaderTab('catalog')}
+                className={`px-2 py-1 rounded ${readerTab === 'catalog' ? 'bg-white text-indigo-600 shadow-xs' : 'text-slate-600'}`}
+              >
+                Books
+              </button>
+              <button
+                onClick={() => onSelectReaderTab('community')}
+                className={`px-2 py-1 rounded ${readerTab === 'community' ? 'bg-white text-indigo-600 shadow-xs' : 'text-slate-600'}`}
+              >
+                Feed
+              </button>
+            </div>
+          )}
 
           {isAuthenticated ? (
-            <>
-              {/* Only Admin can publish books */}
-              {isAdmin && (
-                <button
-                  onClick={onOpenUpload}
-                  className="flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs sm:text-sm font-semibold shadow-xs active:scale-95 transition-all cursor-pointer"
-                >
-                  <PlusCircle className="w-4 h-4" />
-                  <span className="hidden sm:inline">Publish Book</span>
-                </button>
+            /* User Dropdown */
+            <div className="relative">
+              <button
+                onClick={() => setShowProfileMenu(!showProfileMenu)}
+                className="flex items-center gap-2 p-1.5 sm:px-3 sm:py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-800 text-sm transition-all cursor-pointer"
+              >
+                <div className="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center text-xs font-bold shadow-xs">
+                  {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
+                </div>
+                <span className="font-semibold text-xs sm:text-sm hidden sm:inline text-slate-800">
+                  {user?.name || 'Reader'}
+                </span>
+              </button>
+
+              {showProfileMenu && (
+                <div className="absolute right-0 mt-2 w-56 rounded-2xl bg-white border border-slate-200 shadow-xl py-2 z-50 animate-in fade-in">
+                  <div className="px-4 py-2 border-b border-slate-100">
+                    <p className="text-xs text-slate-400 font-medium">Signed in as</p>
+                    <p className="text-sm font-bold text-slate-900 truncate">{user?.name}</p>
+                    <p className="text-xs text-slate-500 font-mono truncate">{user?.email}</p>
+                  </div>
+
+                  {!isAdmin && onOpenProfile && (
+                    <button
+                      onClick={() => {
+                        setShowProfileMenu(false);
+                        onOpenProfile();
+                      }}
+                      className="w-full text-left px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer"
+                    >
+                      <UserIcon className="w-4 h-4 text-indigo-600" />
+                      <span>My Reader Profile</span>
+                    </button>
+                  )}
+
+                  {isAdmin && (
+                    <button
+                      onClick={() => {
+                        setShowProfileMenu(false);
+                        onOpenAdmin();
+                      }}
+                      className="w-full text-left px-4 py-2 text-xs font-semibold text-indigo-600 hover:bg-indigo-50 flex items-center gap-2 cursor-pointer"
+                    >
+                      <ShieldCheck className="w-4 h-4" />
+                      <span>Admin Console</span>
+                    </button>
+                  )}
+
+                  <button
+                    onClick={() => {
+                      setShowProfileMenu(false);
+                      logout();
+                    }}
+                    className="w-full text-left px-4 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 flex items-center gap-2 cursor-pointer border-t border-slate-100 mt-1"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span>Log Out</span>
+                  </button>
+                </div>
               )}
-
-              {/* User Dropdown */}
-              <div className="relative">
-                <button
-                  onClick={() => setShowProfileMenu(!showProfileMenu)}
-                  className="flex items-center gap-2 p-1.5 sm:px-3 sm:py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-800 text-sm transition-all cursor-pointer"
-                >
-                  <div className="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center text-xs font-bold shadow-xs">
-                    {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
-                  </div>
-                  <span className="font-semibold text-xs sm:text-sm hidden sm:inline text-slate-800">
-                    {user?.name || 'Reader'}
-                  </span>
-                </button>
-
-                {showProfileMenu && (
-                  <div className="absolute right-0 mt-2 w-56 rounded-xl bg-white border border-slate-200 shadow-xl py-2 z-50 animate-in fade-in">
-                    <div className="px-4 py-2 border-b border-slate-100">
-                      <p className="text-xs text-slate-400 font-medium">Signed in as</p>
-                      <p className="text-sm font-bold text-slate-900 truncate">{user?.name}</p>
-                      <p className="text-xs text-slate-500 truncate">{user?.email}</p>
-                      {isAdmin && (
-                        <span className="inline-block mt-1 text-[10px] font-bold px-1.5 py-0.5 bg-indigo-100 text-indigo-700 rounded border border-indigo-200 uppercase">
-                          System Admin
-                        </span>
-                      )}
-                    </div>
-                    <div className="p-1 space-y-1">
-                      {isAdmin && (
-                        <button
-                          onClick={() => {
-                            setShowProfileMenu(false);
-                            onOpenAdmin();
-                          }}
-                          className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors cursor-pointer"
-                        >
-                          <ShieldAlert className="w-4 h-4 text-indigo-600" />
-                          Admin Console & Analytics
-                        </button>
-                      )}
-                      <button
-                        onClick={() => {
-                          setShowProfileMenu(false);
-                          logout();
-                        }}
-                        className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                      >
-                        <LogOut className="w-4 h-4" />
-                        <span>Sign Out</span>
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </>
+            </div>
           ) : (
-            <button
-              onClick={onOpenAuth}
-              className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs sm:text-sm font-semibold shadow-xs active:scale-95 transition-all cursor-pointer"
-            >
-              Sign In
-            </button>
+            /* Unauthenticated Login & Register Buttons */
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => onOpenAuth('login')}
+                className="px-3.5 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-bold text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors cursor-pointer"
+              >
+                Sign In
+              </button>
+
+              <button
+                onClick={() => onOpenAuth('register')}
+                className="px-3.5 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-xs active:scale-95 transition-all cursor-pointer"
+              >
+                Get Started
+              </button>
+            </div>
           )}
 
         </div>
+
       </div>
     </header>
   );
