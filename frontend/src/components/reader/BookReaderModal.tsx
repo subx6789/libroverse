@@ -51,37 +51,37 @@ export const BookReaderModal: React.FC<BookReaderModalProps> = ({ book, onClose 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in">
       <div
-        className={`relative w-full bg-white rounded-2xl border border-slate-200 shadow-2xl flex flex-col overflow-hidden transition-all duration-200 ${
+        className={`relative w-full bg-white rounded-lg border border-slate-200 shadow-xl flex flex-col overflow-hidden transition-all duration-200 ${
           fullscreen ? 'h-[98vh] max-w-[98vw]' : 'h-[88vh] max-w-6xl'
         }`}
       >
         
         {/* Reader Top Header */}
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-200 bg-slate-50">
-          <div className="flex items-center gap-3 overflow-hidden">
-            <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold shrink-0">
-              <BookOpen className="w-5 h-5" />
+        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-slate-50">
+          <div className="flex items-center gap-2.5 overflow-hidden">
+            <div className="w-8 h-8 rounded-md bg-indigo-600 text-white flex items-center justify-center font-bold shrink-0">
+              <BookOpen className="w-4 h-4" />
             </div>
             <div className="overflow-hidden">
               <h2 className="text-sm sm:text-base font-bold text-slate-900 truncate">{book.title}</h2>
               <div className="flex items-center gap-2 text-xs text-slate-500">
                 <span className="font-semibold text-slate-700">{authorName}</span>
                 <span>•</span>
-                <span className="px-2 py-0.5 rounded bg-slate-200/80 text-slate-700 text-[10px] font-bold">
+                <span className="px-1.5 py-0.5 rounded bg-slate-200/80 text-slate-700 text-[10px] font-bold">
                   {book.genre}
                 </span>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5 shrink-0">
+          <div className="flex items-center gap-1 shrink-0">
             {book.file && (
               <a
                 href={book.file}
                 target="_blank"
                 rel="noopener noreferrer"
                 download
-                className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors"
+                className="p-1.5 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors"
                 title="Download PDF"
               >
                 <Download className="w-4 h-4" />

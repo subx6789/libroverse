@@ -116,12 +116,12 @@ export const LegalModal: React.FC<LegalModalProps> = ({ type, onClose }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in">
-      <div className="relative w-full max-w-xl rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden max-h-[85vh] flex flex-col">
+      <div className="relative w-full max-w-xl rounded-lg bg-white border border-slate-200 shadow-xl overflow-hidden max-h-[85vh] flex flex-col">
         
         {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-slate-100 bg-slate-50/50">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-indigo-50 border border-indigo-100">
+        <div className="flex items-center justify-between p-4 border-b border-slate-100 bg-slate-50/50">
+          <div className="flex items-center gap-2.5">
+            <div className="p-1.5 rounded-md bg-indigo-50 border border-indigo-100">
               {content.icon}
             </div>
             <div>
@@ -131,9 +131,9 @@ export const LegalModal: React.FC<LegalModalProps> = ({ type, onClose }) => {
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+            className="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 

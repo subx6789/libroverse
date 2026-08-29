@@ -15,7 +15,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onPublishClick }) => {
         <div className="text-center max-w-3xl mx-auto space-y-5">
           
           {/* Solid Light Theme Badge */}
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-bold">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-semibold">
             <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
             <span>Digital Library & Community Hub</span>
           </div>
@@ -31,17 +31,17 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onPublishClick }) => {
           </p>
 
           {/* Primary Action Buttons */}
-          <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+          <div className="flex flex-wrap items-center justify-center gap-2.5 pt-2">
             <button
               onClick={onPublishClick}
-              className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs sm:text-sm shadow-xs flex items-center gap-2 active:scale-95 transition-all cursor-pointer"
+              className="px-4 py-2 rounded-md bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs sm:text-sm shadow-2xs flex items-center gap-2 transition-colors cursor-pointer"
             >
               <UploadCloud className="w-4 h-4" />
               <span>Publish eBook</span>
             </button>
             <a
               href="#catalog"
-              className="px-5 py-2.5 rounded-xl bg-white hover:bg-slate-50 border border-slate-300 text-slate-800 font-semibold text-xs sm:text-sm flex items-center gap-2 transition-all"
+              className="px-4 py-2 rounded-md bg-white hover:bg-slate-50 border border-slate-300 text-slate-800 font-semibold text-xs sm:text-sm flex items-center gap-2 transition-colors"
             >
               <Compass className="w-4 h-4 text-indigo-600" />
               <span>Browse Catalog</span>
@@ -50,8 +50,8 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onPublishClick }) => {
 
           {/* Solid Feature Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-6 max-w-2xl mx-auto text-left">
-            <div className="flex items-center gap-3 p-3.5 rounded-xl bg-slate-50 border border-slate-200">
-              <div className="p-2 rounded-lg bg-indigo-100 text-indigo-700">
+            <div className="flex items-center gap-3 p-3 rounded-md bg-slate-50 border border-slate-200">
+              <div className="p-1.5 rounded bg-indigo-100 text-indigo-700">
                 <BookOpen className="w-4 h-4" />
               </div>
               <div>
@@ -60,8 +60,8 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onPublishClick }) => {
               </div>
             </div>
 
-            <div className="flex items-center gap-3 p-3.5 rounded-xl bg-slate-50 border border-slate-200">
-              <div className="p-2 rounded-lg bg-sky-100 text-sky-700">
+            <div className="flex items-center gap-3 p-3 rounded-md bg-slate-50 border border-slate-200">
+              <div className="p-1.5 rounded bg-sky-100 text-sky-700">
                 <Zap className="w-4 h-4" />
               </div>
               <div>
@@ -70,8 +70,8 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onPublishClick }) => {
               </div>
             </div>
 
-            <div className="flex items-center gap-3 p-3.5 rounded-xl bg-slate-50 border border-slate-200">
-              <div className="p-2 rounded-lg bg-emerald-100 text-emerald-700">
+            <div className="flex items-center gap-3 p-3 rounded-md bg-slate-50 border border-slate-200">
+              <div className="p-1.5 rounded bg-emerald-100 text-emerald-700">
                 <ShieldCheck className="w-4 h-4" />
               </div>
               <div>

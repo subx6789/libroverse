@@ -72,53 +72,53 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Navigation for Authenticated Readers */}
           {isAuthenticated && !isAdmin && onSelectReaderTab && (
-            <nav className="hidden sm:flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-bold">
+            <nav className="hidden sm:flex items-center gap-1 bg-slate-100/80 p-0.5 rounded-lg border border-slate-200 text-xs font-semibold">
               <button
                 onClick={() => onSelectReaderTab('home')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-md transition-colors cursor-pointer ${
                   readerTab === 'home'
-                    ? 'bg-white text-indigo-600 shadow-xs'
+                    ? 'bg-white text-indigo-600 shadow-2xs font-bold'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 <Home className="w-3.5 h-3.5" />
-                <span>Home Hub</span>
+                <span>Home</span>
               </button>
 
               <button
                 onClick={() => onSelectReaderTab('catalog')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-md transition-colors cursor-pointer ${
                   readerTab === 'catalog'
-                    ? 'bg-white text-indigo-600 shadow-xs'
+                    ? 'bg-white text-indigo-600 shadow-2xs font-bold'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 <Library className="w-3.5 h-3.5" />
-                <span>Library Catalog</span>
+                <span>Library</span>
               </button>
 
               <button
                 onClick={() => onSelectReaderTab('community')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-md transition-colors cursor-pointer ${
                   readerTab === 'community'
-                    ? 'bg-white text-indigo-600 shadow-xs'
+                    ? 'bg-white text-indigo-600 shadow-2xs font-bold'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 <Users className="w-3.5 h-3.5" />
-                <span>Reader Community</span>
+                <span>Community</span>
               </button>
             </nav>
           )}
 
           {/* Navigation for Unauthenticated Guests */}
           {!isAuthenticated && onSelectGuestTab && (
-            <nav className="hidden sm:flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-bold">
+            <nav className="hidden sm:flex items-center gap-1 bg-slate-100/80 p-0.5 rounded-lg border border-slate-200 text-xs font-semibold">
               <button
                 onClick={() => onSelectGuestTab('landing')}
-                className={`px-3.5 py-1.5 rounded-lg transition-all cursor-pointer ${
+                className={`px-3 py-1 rounded-md transition-colors cursor-pointer ${
                   guestTab === 'landing'
-                    ? 'bg-white text-indigo-600 shadow-xs'
+                    ? 'bg-white text-indigo-600 shadow-2xs font-bold'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
@@ -127,9 +127,9 @@ export const Navbar: React.FC<NavbarProps> = ({
 
               <button
                 onClick={() => onSelectGuestTab('about')}
-                className={`px-3.5 py-1.5 rounded-lg transition-all cursor-pointer ${
+                className={`px-3 py-1 rounded-md transition-colors cursor-pointer ${
                   guestTab === 'about'
-                    ? 'bg-white text-indigo-600 shadow-xs'
+                    ? 'bg-white text-indigo-600 shadow-2xs font-bold'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >

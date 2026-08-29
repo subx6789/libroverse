@@ -76,16 +76,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in">
-      <div className="relative w-full max-w-md rounded-2xl bg-white border border-slate-200 shadow-2xl p-6 overflow-hidden">
+      <div className="relative w-full max-w-md rounded-lg bg-white border border-slate-200 shadow-xl p-5 overflow-hidden">
         
         {/* Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+        <div className="flex items-center justify-between pb-3.5 border-b border-slate-100">
           <div className="flex items-center gap-2">
-            <div className="p-2 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100">
-              <KeyRound className="w-5 h-5" />
+            <div className="p-1.5 rounded-md bg-indigo-50 text-indigo-600 border border-indigo-100">
+              <KeyRound className="w-4 h-4" />
             </div>
             <div>
-              <h2 className="text-base sm:text-lg font-bold text-slate-900">
+              <h2 className="text-sm sm:text-base font-bold text-slate-900">
                 {mode === 'login' ? 'Sign In to LibroVerse' : 'Create an Account'}
               </h2>
               <p className="text-xs text-slate-500">
@@ -97,15 +97,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+            className="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Error Alert */}
         {error && (
-          <div className="mt-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700 font-medium">
+          <div className="mt-3 p-2.5 rounded-md bg-rose-50 border border-rose-200 text-xs text-rose-700 font-medium">
             {error}
           </div>
         )}
@@ -163,7 +163,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs sm:text-sm font-bold shadow-xs flex items-center justify-center gap-2 active:scale-98 disabled:opacity-50 transition-all cursor-pointer mt-2"
+            className="w-full py-2 px-4 rounded-md bg-indigo-600 hover:bg-indigo-700 text-white text-xs sm:text-sm font-semibold shadow-2xs flex items-center justify-center gap-2 disabled:opacity-50 transition-colors cursor-pointer mt-2"
           >
             {isLoading ? (
               <Loader2 className="w-4 h-4 animate-spin" />
