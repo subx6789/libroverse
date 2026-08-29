@@ -330,4 +330,93 @@ const deletePost = async (req: Request, res: Response, next: NextFunction) => {
   }
 };
 
-export { createPost, listPosts, toggleLikePost, addComment, sharePost, deletePost };
+/**
+ * Update an existing post (Author only)
+ */
+const updatePost = async (req: Request, res: Response, next: NextFunction) => {
+  const postId = req.params.postId;
+  const _req = req as AuthRequest;
+  const { content, title, topic, removeMedia } = req.body;
+
+  if (!content || typeof content !== "string" || !content.trim()) {
+    return next(createHttpError(400, "Post text content is required"));
+  }
+
+  try {
+    const post = await postModel.findById(postId);
+    if (!post) {
+      return next(createHttpError(404, "Post not found"));
+    }
+
+    if (post.author.toString() !== _req.userId) {
+      return next(createHttpError(403, "Unauthorized to edit this post"));
+    }
+
+    post.content = content.trim();
+    if (title !== undefined) post.title = title ? title.trim() : "";
+    if (topic) post.topic = topic;
+
+    const file = req.file;
+    if (file) {
+      const isImage = file.mimetype.startsWith("image/");
+      const isVideo = file.mimetype.startsWith("video/");
+
+      if (isImage) {
+        if (file.size > 15 * 1024 * 1024) {
+          return next(createHttpError(400, "Attached image exceeds 15 MB limit"));
+        }
+        const uploadResult = await uploadStreamToCloudinary(file.buffer, {
+          folder: "community-media",
+          resource_type: "image",
+          quality: "auto:good",
+          fetch_format: "auto",
+          filename_override: file.originalname,
+        });
+        post.media_url = uploadResult?.secure_url || uploadResult?.url;
+        post.media_type = "image";
+      } else if (isVideo) {
+        if (file.size > 50 * 1024 * 1024) {
+          return next(createHttpError(400, "Attached video exceeds 50 MB limit"));
+        }
+        const uploadResult = await uploadStreamToCloudinary(file.buffer, {
+          folder: "community-media",
+          resource_type: "video",
+          quality: "auto:good",
+          fetch_format: "auto",
+          filename_override: file.originalname,
+        });
+        post.media_url = uploadResult?.secure_url || uploadResult?.url;
+        post.media_type = "video";
+      }
+    } else if (removeMedia === "true" || removeMedia === true) {
+      if (post.media_url) {
+        try {
+          const parts = post.media_url.split("/");
+          const filename = parts.at(-1)?.split(".")[0];
+          if (filename) {
+            await cloudinary.uploader.destroy(`community-media/${filename}`, {
+              resource_type: post.media_type === "video" ? "video" : "image",
+            });
+          }
+        } catch (cldErr) {
+          console.warn("Could not delete old post media from Cloudinary:", cldErr);
+        }
+      }
+      post.media_url = "";
+      post.media_type = "none";
+    }
+
+    await post.save();
+
+    const populated = await postModel
+      .findById(post._id)
+      .populate("author", "name username email role avatar")
+      .populate("ebook_id", "title coverImage genre");
+
+    res.json(populated);
+  } catch (err: any) {
+    return next(createHttpError(500, `Failed to update post: ${err?.message}`));
+  }
+};
+
+export { createPost, listPosts, toggleLikePost, addComment, sharePost, deletePost, updatePost };

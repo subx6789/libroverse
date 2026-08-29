@@ -24,6 +24,16 @@ interface PostState {
     ebook_id?: string;
     media?: File;
   }) => Promise<Post>;
+  updatePost: (
+    postId: string,
+    data: {
+      title?: string;
+      content: string;
+      topic?: string;
+      media?: File;
+      removeMedia?: boolean;
+    }
+  ) => Promise<Post>;
   toggleLike: (postId: string) => Promise<void>;
   addComment: (postId: string, content: string) => Promise<void>;
   sharePost: (postId: string) => Promise<void>;
@@ -113,6 +123,33 @@ export const usePostStore = create<PostState>((set, get) => ({
       return newPost;
     } catch (err: any) {
       const msg = err.response?.data?.message || 'Failed to publish post';
+      set({ isSubmitting: false, error: msg });
+      throw new Error(msg, { cause: err });
+    }
+  },
+
+  updatePost: async (postId, payload) => {
+    try {
+      set({ isSubmitting: true, error: null });
+      const formData = new FormData();
+      if (payload.title !== undefined) formData.append('title', payload.title);
+      formData.append('content', payload.content);
+      if (payload.topic) formData.append('topic', payload.topic);
+      if (payload.media) formData.append('media', payload.media);
+      if (payload.removeMedia) formData.append('removeMedia', 'true');
+
+      const res = await api.patch<Post>(`/posts/${postId}`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      const updatedPost = res.data;
+
+      set((state) => ({
+        posts: state.posts.map((p) => (p._id === postId ? updatedPost : p)),
+        isSubmitting: false,
+      }));
+      return updatedPost;
+    } catch (err: any) {
+      const msg = err.response?.data?.message || 'Failed to update post';
       set({ isSubmitting: false, error: msg });
       throw new Error(msg, { cause: err });
     }

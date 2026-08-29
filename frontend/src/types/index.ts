@@ -1,9 +1,11 @@
 export interface User {
   _id: string;
   name: string;
+  username: string;
   email: string;
   role?: 'admin' | 'user';
   avatar?: string;
+  coverImage?: string;
   bio?: string;
   isBanned?: boolean;
   bannedReason?: string;

@@ -13,12 +13,16 @@ interface UserState {
   selectedProfile: UserProfileData | null;
   isLoading: boolean;
   isProfileLoading: boolean;
+  isUpdatingProfile: boolean;
   error: string | null;
   fetchUsers: () => Promise<void>;
   fetchSuggestedUsers: () => Promise<void>;
   fetchUserProfile: (userId: string) => Promise<void>;
   toggleFollowUser: (userId: string) => Promise<void>;
   searchUsers: (query: string) => Promise<User[]>;
+  searchMentions: (query: string) => Promise<{ users: any[]; books: any[] }>;
+  checkUsername: (username: string) => Promise<{ available: boolean; message: string }>;
+  updateProfile: (formData: FormData) => Promise<User>;
   toggleBanUser: (userId: string, reason?: string) => Promise<void>;
 }
 
@@ -28,6 +32,7 @@ export const useUserStore = create<UserState>((set, get) => ({
   selectedProfile: null,
   isLoading: false,
   isProfileLoading: false,
+  isUpdatingProfile: false,
   error: null,
 
   fetchUsers: async () => {
@@ -113,6 +118,62 @@ export const useUserStore = create<UserState>((set, get) => ({
     } catch (err) {
       console.warn('Search readers error:', err);
       return [];
+    }
+  },
+
+  searchMentions: async (query: string) => {
+    if (!query.trim()) return { users: [], books: [] };
+    try {
+      const res = await api.get<{ users: any[]; books: any[] }>(
+        `/users/mentions?q=${encodeURIComponent(query)}`
+      );
+      return res.data || { users: [], books: [] };
+    } catch (err) {
+      console.warn('Search mentions error:', err);
+      return { users: [], books: [] };
+    }
+  },
+
+  checkUsername: async (username: string) => {
+    if (!username.trim()) return { available: false, message: 'Username cannot be empty' };
+    try {
+      const res = await api.get<{ available: boolean; message: string }>(
+        `/users/check-username?username=${encodeURIComponent(username)}`
+      );
+      return res.data;
+    } catch (err: any) {
+      return { available: false, message: err.response?.data?.message || 'Check failed' };
+    }
+  },
+
+  updateProfile: async (formData: FormData) => {
+    try {
+      set({ isUpdatingProfile: true, error: null });
+      const res = await api.patch<User>('/users/profile', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      const updatedUser = res.data;
+
+      // Update selected profile if open
+      const profile = get().selectedProfile;
+      if (profile && profile.user._id === updatedUser._id) {
+        set({
+          selectedProfile: {
+            ...profile,
+            user: {
+              ...profile.user,
+              ...updatedUser,
+            },
+          },
+        });
+      }
+
+      set({ isUpdatingProfile: false });
+      return updatedUser;
+    } catch (err: any) {
+      const msg = err.response?.data?.message || 'Failed to update profile';
+      set({ isUpdatingProfile: false, error: msg });
+      throw new Error(msg, { cause: err });
     }
   },
 

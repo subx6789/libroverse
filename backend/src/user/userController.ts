@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import mongoose from "mongoose";
 import createHttpError from "http-errors";
+import { Readable } from "node:stream";
 import userModel from "./userModel";
 import postModel from "../post/postModel";
 import bcrypt from "bcrypt";
@@ -8,6 +9,34 @@ import { sign } from "jsonwebtoken";
 import { config } from "../config/config";
 import { User } from "./userTypes";
 import { AuthRequest } from "../middlewares/authenticate";
+import cloudinary from "../config/cloudinary";
+
+const uploadStreamToCloudinary = (
+  buffer: Buffer,
+  options: {
+    folder: string;
+    resource_type: "image" | "video" | "raw" | "auto";
+    filename_override?: string;
+    quality?: string | number;
+    fetch_format?: string;
+  }
+): Promise<any> => {
+  return new Promise((resolve, reject) => {
+    const uploadStream = cloudinary.uploader.upload_stream(
+      options,
+      (error, result) => {
+        if (error) return reject(error);
+        resolve(result);
+      }
+    );
+
+    const readable = new Readable();
+    readable._read = () => {};
+    readable.push(buffer);
+    readable.push(null);
+    readable.pipe(uploadStream);
+  });
+};
 
 /**
  * Create a new user
@@ -28,8 +57,32 @@ const createUser = async (req: Request, res: Response, next: NextFunction) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
+    // Generate unique username: slug-random4Digits
+    const baseSlug = name
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "") || "reader";
+
+    let generatedUsername = "";
+    let isUnique = false;
+    let attempts = 0;
+    while (!isUnique && attempts < 10) {
+      const randNum = Math.floor(1000 + Math.random() * 9000);
+      generatedUsername = `${baseSlug}-${randNum}`;
+      const found = await userModel.findOne({ username: generatedUsername });
+      if (!found) {
+        isUnique = true;
+      }
+      attempts++;
+    }
+    if (!isUnique) {
+      generatedUsername = `${baseSlug}-${Date.now().toString().slice(-4)}`;
+    }
+
     const newUser: User = await userModel.create({
       name,
+      username: generatedUsername,
       email: email.toLowerCase(),
       password: hashedPassword,
     });
@@ -43,9 +96,12 @@ const createUser = async (req: Request, res: Response, next: NextFunction) => {
       user: {
         _id: newUser._id,
         name: newUser.name,
+        username: newUser.username,
         email: newUser.email,
         role: newUser.role || "user",
         avatar: newUser.avatar || "",
+        coverImage: newUser.coverImage || "",
+        bio: newUser.bio || "",
         isBanned: false,
       },
     });
@@ -85,6 +141,18 @@ const loginUser = async (req: Request, res: Response, next: NextFunction) => {
       return next(createHttpError(400, "Invalid credentials"));
     }
 
+    // Backfill username if existing user does not have one yet
+    if (!user.username) {
+      const baseSlug = user.name
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "") || "reader";
+      const randNum = Math.floor(1000 + Math.random() * 9000);
+      user.username = `${baseSlug}-${randNum}`;
+      await user.save();
+    }
+
     const token = sign({ sub: user._id }, config.jwtSecret as string, {
       expiresIn: "7d",
     });
@@ -94,9 +162,12 @@ const loginUser = async (req: Request, res: Response, next: NextFunction) => {
       user: {
         _id: user._id,
         name: user.name,
+        username: user.username,
         email: user.email,
         role: user.role || "user",
         avatar: user.avatar || "",
+        coverImage: user.coverImage || "",
+        bio: user.bio || "",
         isBanned: user.isBanned || false,
       },
     });
@@ -415,6 +486,161 @@ const searchUsers = async (req: Request, res: Response, next: NextFunction) => {
   }
 };
 
+/**
+ * Check if a username is available (real-time debounced check)
+ */
+const checkUsername = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const username = (req.query.username as string)?.toLowerCase().trim();
+    const _req = req as AuthRequest;
+    const currentUserId = _req.userId;
+
+    if (!username || username.length < 3) {
+      return res.json({ available: false, message: "Username must be at least 3 characters" });
+    }
+
+    if (!/^[a-z0-9-_]+$/.test(username)) {
+      return res.json({ available: false, message: "Only letters, numbers, hyphens and underscores allowed" });
+    }
+
+    const existingUser = await userModel.findOne({ username });
+    if (existingUser && existingUser._id.toString() !== currentUserId) {
+      return res.json({ available: false, message: "Username is already taken" });
+    }
+
+    return res.json({ available: true, message: "Username is available" });
+  } catch (err: any) {
+    return next(createHttpError(500, `Error checking username: ${err?.message}`));
+  }
+};
+
+/**
+ * Authenticated: Update current user's profile (name, username, bio, avatar, coverImage)
+ */
+const updateProfile = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const _req = req as AuthRequest;
+    const userId = _req.userId;
+    const { name, username, bio } = req.body;
+
+    const user = await userModel.findById(userId);
+    if (!user) {
+      return next(createHttpError(404, "User not found"));
+    }
+
+    if (name && typeof name === "string" && name.trim()) {
+      user.name = name.trim();
+    }
+
+    if (bio !== undefined && typeof bio === "string") {
+      user.bio = bio.trim();
+    }
+
+    if (username && typeof username === "string") {
+      const cleanUsername = username.toLowerCase().trim();
+      if (cleanUsername !== user.username) {
+        if (!/^[a-z0-9-_]{3,30}$/.test(cleanUsername)) {
+          return next(createHttpError(400, "Username must be 3-30 characters (letters, numbers, -, _)"));
+        }
+        const existing = await userModel.findOne({ username: cleanUsername });
+        if (existing && existing._id.toString() !== userId) {
+          return next(createHttpError(400, "Username is already taken"));
+        }
+        user.username = cleanUsername;
+      }
+    }
+
+    const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+    const avatarFile = files?.avatar?.[0];
+    const coverFile = files?.coverImage?.[0];
+
+    if (avatarFile) {
+      if (avatarFile.size > 5 * 1024 * 1024) {
+        return next(createHttpError(400, "Avatar must be under 5 MB"));
+      }
+      const avatarUpload = await uploadStreamToCloudinary(avatarFile.buffer, {
+        folder: "user-avatars",
+        resource_type: "image",
+        quality: "auto:good",
+        fetch_format: "auto",
+        filename_override: avatarFile.originalname,
+      });
+      user.avatar = avatarUpload?.secure_url || avatarUpload?.url || user.avatar;
+    }
+
+    if (coverFile) {
+      if (coverFile.size > 8 * 1024 * 1024) {
+        return next(createHttpError(400, "Cover image must be under 8 MB"));
+      }
+      const coverUpload = await uploadStreamToCloudinary(coverFile.buffer, {
+        folder: "user-covers",
+        resource_type: "image",
+        quality: "auto:good",
+        fetch_format: "auto",
+        filename_override: coverFile.originalname,
+      });
+      user.coverImage = coverUpload?.secure_url || coverUpload?.url || user.coverImage;
+    }
+
+    await user.save();
+
+    res.json({
+      _id: user._id,
+      name: user.name,
+      username: user.username,
+      email: user.email,
+      role: user.role,
+      avatar: user.avatar || "",
+      coverImage: user.coverImage || "",
+      bio: user.bio || "",
+      isBanned: user.isBanned || false,
+    });
+  } catch (err: any) {
+    return next(createHttpError(500, `Failed to update profile: ${err?.message}`));
+  }
+};
+
+/**
+ * Public/Auth: Search mentions (both users and books) for @autocomplete
+ */
+const searchMentions = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const query = (req.query.q as string)?.trim();
+    if (!query) {
+      return res.json({ users: [], books: [] });
+    }
+
+    const [matchedUsers, matchedBooks] = await Promise.all([
+      userModel
+        .find({
+          $or: [
+            { username: { $regex: query, $options: "i" } },
+            { name: { $regex: query, $options: "i" } },
+          ],
+          isBanned: { $ne: true },
+          role: { $ne: "admin" },
+        })
+        .select("name username avatar")
+        .limit(6)
+        .lean(),
+      mongoose.model("Book")
+        .find({
+          title: { $regex: query, $options: "i" },
+        })
+        .select("title coverImage genre")
+        .limit(6)
+        .lean(),
+    ]);
+
+    res.json({
+      users: matchedUsers,
+      books: matchedBooks,
+    });
+  } catch (err: any) {
+    return next(createHttpError(500, `Error searching mentions: ${err?.message}`));
+  }
+};
+
 export {
   createUser,
   loginUser,
@@ -426,4 +652,7 @@ export {
   getUserProfile,
   getSuggestedUsers,
   searchUsers,
+  checkUsername,
+  updateProfile,
+  searchMentions,
 };

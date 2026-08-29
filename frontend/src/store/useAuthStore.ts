@@ -13,6 +13,7 @@ interface AuthState {
   initAuth: () => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
+  updateUser: (updatedUser: Partial<User>) => void;
   logout: () => void;
   clearError: () => void;
 }
@@ -123,6 +124,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({ error: msg, isLoading: false });
       throw new Error(msg, { cause: err });
     }
+  },
+
+  updateUser: (updatedData: Partial<User>) => {
+    const current = get().user;
+    if (!current) return;
+    const merged = { ...current, ...updatedData };
+    set({ user: merged });
+    localStorage.setItem('user', JSON.stringify(merged));
   },
 
   logout: () => {

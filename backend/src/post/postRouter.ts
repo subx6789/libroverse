@@ -7,6 +7,7 @@ import {
   addComment,
   sharePost,
   deletePost,
+  updatePost,
 } from "./postController";
 import authenticate from "../middlewares/authenticate";
 
@@ -21,6 +22,7 @@ const upload = multer({
 // Routes
 postRouter.get("/", listPosts);
 postRouter.post("/", authenticate, upload.single("media"), createPost);
+postRouter.patch("/:postId", authenticate, upload.single("media"), updatePost);
 postRouter.post("/:postId/like", authenticate, toggleLikePost);
 postRouter.post("/:postId/comment", authenticate, addComment);
 postRouter.post("/:postId/share", sharePost);

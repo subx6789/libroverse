@@ -1,87 +1,123 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Send,
   Image as ImageIcon,
   Video,
   X,
   Loader2,
+  AtSign,
   Hash,
-  BookOpen,
-  Sparkles,
-  Smile,
-} from "lucide-react";
-import { usePostStore } from "../../store/usePostStore";
-import { useBookStore } from "../../store/useBookStore";
-import { useAuthStore } from "../../store/useAuthStore";
-import { useToast } from "../ui/ToastContext";
-import { compressImage, compressVideo } from "../../utils/mediaCompressor";
-import { CompressionStatsBadge } from "../ui/CompressionStatsBadge";
-import { RichTweetText } from "./RichTweetText";
+} from 'lucide-react';
+import { usePostStore } from '../../store/usePostStore';
+import { useUserStore } from '../../store/useUserStore';
+import { useAuthStore } from '../../store/useAuthStore';
+import { useToast } from '../ui/ToastContext';
+import { compressImage, compressVideo } from '../../utils/mediaCompressor';
+import { HighlightedTextarea } from './HighlightedTextarea';
+import { MentionAutocomplete } from './MentionAutocomplete';
 
 interface CreatePostCardProps {
   onOpenAuth: () => void;
 }
 
 const POPULAR_HASHTAGS = [
-  "#ReadingGoals",
-  "#BookReview",
-  "#SciFi",
-  "#Philosophy",
-  "#TechNotes",
-  "#SelfGrowth",
-  "#ClassicLit",
+  '#ReadingGoals',
+  '#BookReview',
+  '#SciFi',
+  '#Philosophy',
+  '#TechNotes',
+  '#SelfGrowth',
 ];
 
-export const CreatePostCard: React.FC<CreatePostCardProps> = ({
-  onOpenAuth,
-}) => {
+export const CreatePostCard: React.FC<CreatePostCardProps> = ({ onOpenAuth }) => {
   const { createPost, isSubmitting } = usePostStore();
-  const { books } = useBookStore();
+  const { searchMentions } = useUserStore();
   const { user } = useAuthStore();
   const { showToast } = useToast();
 
-  const [content, setContent] = useState("");
-  const [topic, setTopic] = useState("General Discussion");
-  const [selectedBookId, setSelectedBookId] = useState("");
+  const [content, setContent] = useState('');
+  const [topic, setTopic] = useState('General Discussion');
   const [mediaFile, setMediaFile] = useState<File | null>(null);
-  const [mediaPreview, setMediaPreview] = useState<string>("");
-  const [mediaType, setMediaType] = useState<"image" | "video" | null>(null);
-  const [mediaStats, setMediaStats] = useState<any | null>(null);
+  const [mediaPreview, setMediaPreview] = useState<string>('');
+  const [mediaType, setMediaType] = useState<'image' | 'video' | null>(null);
   const [isCompressingMedia, setIsCompressingMedia] = useState(false);
-  const [showBookTagger, setShowBookTagger] = useState(false);
 
-  const topics = [
-    "General Discussion",
-    "Book Reviews & Ratings",
-    "Reading Notes & Highlights",
-    "Tech & Software Architecture",
-    "Science Fiction & Fantasy",
-    "Self-Improvement & Habits",
-  ];
+  // Mention Autocomplete state
+  const [mentionResults, setMentionResults] = useState<{ users: any[]; books: any[] }>({
+    users: [],
+    books: [],
+  });
+  const [showMentionMenu, setShowMentionMenu] = useState(false);
+  const [isSearchingMentions, setIsSearchingMentions] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Detect "@" query in real-time
+  useEffect(() => {
+    const atMatch = content.match(/@([a-zA-Z0-9_\s-]{1,25})$/);
+    if (atMatch && atMatch[1]) {
+      const query = atMatch[1].trim();
+      if (query.length >= 1) {
+        setIsSearchingMentions(true);
+        setShowMentionMenu(true);
+        const timer = setTimeout(async () => {
+          try {
+            const data = await searchMentions(query);
+            setMentionResults(data);
+          } catch (e) {
+            console.warn('Mention search failed', e);
+          } finally {
+            setIsSearchingMentions(false);
+          }
+        }, 150);
+        return () => clearTimeout(timer);
+      }
+    } else {
+      setShowMentionMenu(false);
+    }
+  }, [content, searchMentions]);
+
+  const handleSelectUserMention = (targetUser: { name: string; username?: string }) => {
+    const handle = targetUser.username || targetUser.name.toLowerCase().replace(/\s+/g, '-');
+    setContent((prev) => {
+      return prev.replace(/@([a-zA-Z0-9_\s-]*)$/, `@${handle} `);
+    });
+    setShowMentionMenu(false);
+    textareaRef.current?.focus();
+  };
+
+  const handleSelectBookMention = (book: { title: string }) => {
+    const bookTag = book.title.replace(/\s+/g, '-');
+    setContent((prev) => {
+      return prev.replace(/@([a-zA-Z0-9_\s-]*)$/, `@${bookTag} `);
+    });
+    setShowMentionMenu(false);
+    textareaRef.current?.focus();
+  };
 
   const handleInsertHashtag = (tag: string) => {
     setContent((prev) => {
       const trimmed = prev.trim();
       return trimmed ? `${trimmed} ${tag} ` : `${tag} `;
     });
+    textareaRef.current?.focus();
   };
 
   const handleMediaChange = async (
     e: React.ChangeEvent<HTMLInputElement>,
-    type: "image" | "video",
+    type: 'image' | 'video'
   ) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
 
-      if (type === "image" && file.size > 15 * 1024 * 1024) {
-        showToast("Image attachment exceeds 15 MB limit", "error");
-        e.target.value = "";
+      if (type === 'image' && file.size > 15 * 1024 * 1024) {
+        showToast('Image attachment exceeds 15 MB limit', 'error');
+        e.target.value = '';
         return;
       }
 
-      if (type === "video" && file.size > 50 * 1024 * 1024) {
-        showToast("Video attachment exceeds 50 MB limit", "error");
-        e.target.value = "";
+      if (type === 'video' && file.size > 50 * 1024 * 1024) {
+        showToast('Video attachment exceeds 50 MB limit', 'error');
+        e.target.value = '';
         return;
       }
 
@@ -90,22 +126,20 @@ export const CreatePostCard: React.FC<CreatePostCardProps> = ({
       setIsCompressingMedia(true);
 
       try {
-        if (type === "image") {
+        if (type === 'image') {
           const result = await compressImage(file, {
             maxWidth: 1400,
             maxHeight: 1400,
             quality: 0.85,
           });
           setMediaFile(result.file);
-          setMediaStats(result);
           setMediaPreview(URL.createObjectURL(result.file));
         } else {
           const result = await compressVideo(file);
           setMediaFile(result.file);
-          setMediaStats(result);
         }
       } catch (err) {
-        console.error("Media optimization failed, using original:", err);
+        console.error('Media optimization failed, using original:', err);
         setMediaFile(file);
       } finally {
         setIsCompressingMedia(false);
@@ -116,11 +150,8 @@ export const CreatePostCard: React.FC<CreatePostCardProps> = ({
   const removeMedia = () => {
     setMediaFile(null);
     setMediaType(null);
-    setMediaPreview("");
-    setMediaStats(null);
+    setMediaPreview('');
   };
-
-  const selectedBook = books.find((b) => b._id === selectedBookId);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -131,7 +162,7 @@ export const CreatePostCard: React.FC<CreatePostCardProps> = ({
     }
 
     if (!content.trim()) {
-      showToast("Please type your thought, quote, or review", "error");
+      showToast('Please type your thought, quote, or review', 'error');
       return;
     }
 
@@ -139,17 +170,14 @@ export const CreatePostCard: React.FC<CreatePostCardProps> = ({
       await createPost({
         content: content.trim(),
         topic,
-        ebook_id: selectedBookId || undefined,
         media: mediaFile || undefined,
       });
 
-      showToast("Thought posted to reader feed!", "success");
-      setContent("");
-      setSelectedBookId("");
+      showToast('Thought posted to reader feed!', 'success');
+      setContent('');
       removeMedia();
-      setShowBookTagger(false);
     } catch (err: any) {
-      showToast(err.message || "Failed to publish post", "error");
+      showToast(err.message || 'Failed to publish post', 'error');
     }
   };
 
@@ -158,77 +186,44 @@ export const CreatePostCard: React.FC<CreatePostCardProps> = ({
   const isOverLimit = charCount > maxChars;
 
   return (
-    <div className="bg-white rounded-lg border border-slate-200 shadow-xs p-4 transition-all">
+    <div className="bg-white rounded-lg border border-slate-200 shadow-xs p-4 transition-all relative">
       <form onSubmit={handleSubmit} className="space-y-3">
         {/* Top: Avatar + Inline Textarea */}
         <div className="flex items-start gap-2.5">
-          <div className="w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-xs shrink-0">
+          <div className="w-8 h-8 rounded-md bg-slate-900 text-white flex items-center justify-center font-bold text-xs shrink-0 overflow-hidden">
             {user ? (
               user.avatar ? (
-                <img
-                  src={user.avatar}
-                  className="w-full h-full rounded-full object-cover"
-                />
+                <img src={user.avatar} className="w-full h-full object-cover" />
               ) : (
                 user.name.charAt(0).toUpperCase()
               )
             ) : (
-              "👤"
+              '👤'
             )}
           </div>
 
-          <div className="flex-1 space-y-2">
-            <textarea
+          <div className="flex-1 space-y-2 relative">
+            <HighlightedTextarea
+              textareaRef={textareaRef}
               rows={3}
               value={content}
-              onChange={(e) => setContent(e.target.value)}
+              onChange={(val) => setContent(val)}
               placeholder={
                 user
-                  ? `What are you reading or thinking, ${user.name.split(" ")[0]}? Use #hashtags to trend...`
-                  : "Join the community to post thoughts, quotes & tag books..."
+                  ? `What are you reading or thinking, ${user.name.split(' ')[0]}? Use #hashtags and @mentions...`
+                  : 'Join the community to post thoughts, quotes, and @tag books/users...'
               }
-              className="w-full bg-transparent border-none p-0 text-slate-800 text-sm focus:ring-0 resize-none outline-none leading-relaxed"
             />
 
-            {/* Live Hashtag Preview Indicator */}
-            {content.includes("#") && (
-              <div className="text-xs text-slate-500 bg-slate-50 p-2 rounded-md border border-slate-200 flex items-center gap-2">
-                <span className="font-semibold text-slate-400">
-                  Live Preview:
-                </span>
-                <RichTweetText content={content} />
-              </div>
-            )}
-
-            {/* Attached Tagged eBook Card */}
-            {selectedBook && (
-              <div className="flex items-center justify-between gap-3 p-2 rounded-md bg-indigo-50/70 border border-indigo-100 max-w-md animate-in fade-in">
-                <div className="flex items-center gap-2 min-w-0">
-                  <img
-                    src={selectedBook.coverImage}
-                    alt=""
-                    className="w-7 h-10 object-cover rounded-sm bg-white shadow-2xs shrink-0 border border-indigo-200"
-                  />
-                  <div className="min-w-0">
-                    <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider">
-                      Tagged Publication
-                    </span>
-                    <p className="text-xs font-bold text-slate-900 truncate">
-                      {selectedBook.title}
-                    </p>
-                    <p className="text-[10px] text-slate-500 truncate">
-                      {selectedBook.genre}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setSelectedBookId("")}
-                  className="p-1 text-slate-400 hover:text-slate-700 rounded cursor-pointer"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
+            {/* Mention Autocomplete Box */}
+            {showMentionMenu && (
+              <MentionAutocomplete
+                users={mentionResults.users}
+                books={mentionResults.books}
+                onSelectUser={handleSelectUserMention}
+                onSelectBook={handleSelectBookMention}
+                isLoading={isSearchingMentions}
+              />
             )}
 
             {/* Media Preview Box */}
@@ -238,11 +233,11 @@ export const CreatePostCard: React.FC<CreatePostCardProps> = ({
                   <button
                     type="button"
                     onClick={removeMedia}
-                    className="absolute top-2.5 right-2.5 p-1 rounded-full bg-slate-900/70 text-white hover:bg-slate-900 transition-colors z-10 cursor-pointer"
+                    className="absolute top-2.5 right-2.5 p-1 rounded-md bg-slate-900/70 text-white hover:bg-slate-900 transition-colors z-10 cursor-pointer"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
-                  {mediaType === "image" ? (
+                  {mediaType === 'image' ? (
                     <img
                       src={mediaPreview}
                       alt="Upload Preview"
@@ -256,98 +251,55 @@ export const CreatePostCard: React.FC<CreatePostCardProps> = ({
                     />
                   )}
                 </div>
-
-                {(isCompressingMedia || mediaStats) && (
-                  <CompressionStatsBadge
-                    type={mediaType || "image"}
-                    stats={mediaStats}
-                    isCompressing={isCompressingMedia}
-                  />
-                )}
               </div>
             )}
           </div>
         </div>
 
-        {/* Quick Hashtag Pills */}
-        <div className="flex items-center gap-1 overflow-x-auto pb-1 text-xs no-scrollbar pt-1 border-t border-slate-100">
-          <span className="text-[11px] font-semibold text-slate-400 shrink-0 flex items-center gap-1 mr-0.5">
+        {/* Popular Hashtag Quick-Pills */}
+        <div className="flex items-center gap-1.5 flex-wrap pt-1 border-t border-slate-100/60">
+          <span className="text-[11px] font-semibold text-slate-400 flex items-center gap-1 mr-1">
             <Hash className="w-3 h-3 text-sky-500" />
-            Trends:
+            <span>Trending:</span>
           </span>
           {POPULAR_HASHTAGS.map((tag) => (
             <button
               key={tag}
               type="button"
               onClick={() => handleInsertHashtag(tag)}
-              className="px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-[11px] shrink-0 transition-colors cursor-pointer"
+              className="text-[11px] font-medium text-sky-600 hover:text-sky-700 bg-sky-50/70 hover:bg-sky-100/80 px-2 py-0.5 rounded-sm transition-colors cursor-pointer"
             >
               {tag}
             </button>
           ))}
         </div>
 
-        {/* Book Tagger Dropdown (if toggled) */}
-        {showBookTagger && (
-          <div className="p-2.5 bg-slate-50 rounded-md border border-slate-200 space-y-1.5 animate-in fade-in">
-            <div className="flex items-center justify-between text-xs font-semibold text-slate-700">
-              <span className="flex items-center gap-1.5">
-                <BookOpen className="w-3.5 h-3.5 text-indigo-600" />
-                Tag an eBook from LibroVerse Library
-              </span>
-              <button
-                type="button"
-                onClick={() => setShowBookTagger(false)}
-                className="text-slate-400 hover:text-slate-600"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
-            <select
-              value={selectedBookId}
-              onChange={(e) => {
-                setSelectedBookId(e.target.value);
-                setShowBookTagger(false);
-              }}
-              className="input-field text-xs bg-white cursor-pointer"
-            >
-              <option value="">-- Choose an eBook to attach --</option>
-              {books.map((b) => (
-                <option key={b._id} value={b._id}>
-                  📖 {b.title} ({b.genre})
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-
         {/* Toolbar & Fast Post Button */}
         <div className="flex items-center justify-between pt-2 border-t border-slate-100">
-          <div className="flex items-center gap-1">
-            {/* Tag eBook Button */}
+          <div className="flex items-center gap-1.5">
+            {/* Mention trigger button */}
             <button
               type="button"
-              onClick={() => setShowBookTagger(!showBookTagger)}
-              className={`px-2.5 py-1.5 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
-                selectedBookId
-                  ? "bg-indigo-50 text-indigo-600 font-bold"
-                  : "hover:bg-slate-100 text-slate-600"
-              }`}
-              title="Tag an eBook"
+              onClick={() => {
+                setContent((prev) => `${prev.trim()} @`);
+                textareaRef.current?.focus();
+              }}
+              className="px-2.5 py-1.5 rounded-md text-xs font-semibold hover:bg-slate-100 text-slate-600 flex items-center gap-1 cursor-pointer transition-colors"
+              title="Mention user or eBook (@)"
             >
-              <BookOpen className="w-3.5 h-3.5 text-indigo-600" />
-              <span className="hidden sm:inline">Tag eBook</span>
+              <AtSign className="w-3.5 h-3.5 text-indigo-600" />
+              <span className="hidden sm:inline">Mention</span>
             </button>
 
             {/* Image Attachment Button */}
             <label
-              className="px-2.5 py-1.5 rounded-md text-xs font-semibold hover:bg-slate-100 text-slate-600 flex items-center gap-1.5 cursor-pointer transition-colors"
+              className="px-2.5 py-1.5 rounded-md text-xs font-semibold hover:bg-slate-100 text-slate-600 flex items-center gap-1 cursor-pointer transition-colors"
               title="Attach Image"
             >
               <input
                 type="file"
                 accept="image/*"
-                onChange={(e) => handleMediaChange(e, "image")}
+                onChange={(e) => handleMediaChange(e, 'image')}
                 disabled={isCompressingMedia}
                 className="hidden"
               />
@@ -357,13 +309,13 @@ export const CreatePostCard: React.FC<CreatePostCardProps> = ({
 
             {/* Video Attachment Button */}
             <label
-              className="px-2.5 py-1.5 rounded-md text-xs font-semibold hover:bg-slate-100 text-slate-600 flex items-center gap-1.5 cursor-pointer transition-colors"
+              className="px-2.5 py-1.5 rounded-md text-xs font-semibold hover:bg-slate-100 text-slate-600 flex items-center gap-1 cursor-pointer transition-colors"
               title="Attach Video"
             >
               <input
                 type="file"
                 accept="video/*"
-                onChange={(e) => handleMediaChange(e, "video")}
+                onChange={(e) => handleMediaChange(e, 'video')}
                 disabled={isCompressingMedia}
                 className="hidden"
               />
@@ -377,10 +329,10 @@ export const CreatePostCard: React.FC<CreatePostCardProps> = ({
             <span
               className={`text-[11px] font-mono font-medium ${
                 isOverLimit
-                  ? "text-rose-600 font-bold"
+                  ? 'text-rose-600 font-bold'
                   : charCount > 240
-                    ? "text-amber-500"
-                    : "text-slate-400"
+                  ? 'text-amber-500'
+                  : 'text-slate-400'
               }`}
             >
               {maxChars - charCount}
@@ -388,12 +340,7 @@ export const CreatePostCard: React.FC<CreatePostCardProps> = ({
 
             <button
               type="submit"
-              disabled={
-                isSubmitting ||
-                isCompressingMedia ||
-                isOverLimit ||
-                !content.trim()
-              }
+              disabled={isSubmitting || isCompressingMedia || isOverLimit || !content.trim()}
               className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md text-xs font-semibold shadow-2xs disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5 shrink-0"
             >
               {isSubmitting ? (
