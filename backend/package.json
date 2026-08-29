@@ -1,5 +1,5 @@
 {
-  "name": "libroverse",
+  "name": "libroverse-backend",
   "version": "1.0.0",
   "description": "This is a ebook project",
   "main": "index.js",

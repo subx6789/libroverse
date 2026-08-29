@@ -16,6 +16,8 @@ const uploadStreamToCloudinary = (
     folder: string;
     resource_type: "image" | "video" | "raw" | "auto";
     filename_override?: string;
+    quality?: string | number;
+    fetch_format?: string;
   }
 ): Promise<any> => {
   return new Promise((resolve, reject) => {
@@ -65,24 +67,28 @@ const createPost = async (req: Request, res: Response, next: NextFunction) => {
       const isVideo = file.mimetype.startsWith("video/");
 
       if (isImage) {
-        if (file.size > 2 * 1024 * 1024) {
-          return next(createHttpError(400, "Attached image exceeds 2 MB limit"));
+        if (file.size > 15 * 1024 * 1024) {
+          return next(createHttpError(400, "Attached image exceeds 15 MB limit"));
         }
         mediaType = "image";
         uploadResult = await uploadStreamToCloudinary(file.buffer, {
           folder: "community-media",
           resource_type: "image",
+          quality: "auto:good",
+          fetch_format: "auto",
           filename_override: file.originalname,
         });
         mediaUrl = uploadResult?.secure_url || uploadResult?.url;
       } else if (isVideo) {
-        if (file.size > 10 * 1024 * 1024) {
-          return next(createHttpError(400, "Attached video exceeds 10 MB limit"));
+        if (file.size > 50 * 1024 * 1024) {
+          return next(createHttpError(400, "Attached video exceeds 50 MB limit"));
         }
         mediaType = "video";
         uploadResult = await uploadStreamToCloudinary(file.buffer, {
           folder: "community-media",
           resource_type: "video",
+          quality: "auto:good",
+          fetch_format: "auto",
           filename_override: file.originalname,
         });
         mediaUrl = uploadResult?.secure_url || uploadResult?.url;
@@ -128,10 +134,20 @@ const createPost = async (req: Request, res: Response, next: NextFunction) => {
  * List social community feed
  */
 const listPosts = async (req: Request, res: Response, next: NextFunction) => {
-  const { topic, ebook_id, search, sort } = req.query;
+  const { topic, ebook_id, search, sort, feed, authorId, userId } = req.query;
 
   try {
     const filter: any = {};
+
+    if (authorId) {
+      filter.author = authorId;
+    }
+
+    if (feed === "following" && userId) {
+      const currentUser = await userModel.findById(userId);
+      const followingIds = currentUser?.following || [];
+      filter.author = { $in: [...followingIds, userId] };
+    }
 
     if (topic && topic !== "All") {
       filter.topic = topic;
@@ -159,7 +175,7 @@ const listPosts = async (req: Request, res: Response, next: NextFunction) => {
       .populate("author", "name email role avatar isBanned")
       .populate("ebook_id", "title coverImage genre")
       .sort(sortOption)
-      .limit(50);
+      .limit(60);
 
     res.json(posts);
   } catch (err: any) {

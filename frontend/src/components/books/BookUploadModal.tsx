@@ -4,6 +4,8 @@ import { useBookStore } from '../../store/useBookStore';
 import { useCategoryStore } from '../../store/useCategoryStore';
 import { useToast } from '../ui/ToastContext';
 import type { Book } from '../../types';
+import { compressImage, compressPdf } from '../../utils/mediaCompressor';
+import { CompressionStatsBadge } from '../ui/CompressionStatsBadge';
 
 interface BookUploadModalProps {
   isOpen: boolean;
@@ -27,6 +29,11 @@ export const BookUploadModal: React.FC<BookUploadModalProps> = ({
   const [bookFile, setBookFile] = useState<File | null>(null);
   const [coverPreview, setCoverPreview] = useState<string>(bookToEdit?.coverImage || '');
 
+  const [coverStats, setCoverStats] = useState<any | null>(null);
+  const [isCompressingCover, setIsCompressingCover] = useState(false);
+  const [bookStats, setBookStats] = useState<any | null>(null);
+  const [isCompressingBook, setIsCompressingBook] = useState(false);
+
   useEffect(() => {
     fetchCategories();
   }, [fetchCategories]);
@@ -43,34 +50,60 @@ export const BookUploadModal: React.FC<BookUploadModalProps> = ({
     setCoverPreview(bookToEdit?.coverImage || '');
     setCoverFile(null);
     setBookFile(null);
+    setCoverStats(null);
+    setBookStats(null);
   }
 
   if (!isOpen) return null;
 
-  const handleCoverChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCoverChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      if (file.size > 2 * 1024 * 1024) {
-        showToast('Cover image size exceeds 2 MB limit. Please choose an image under 2 MB.', 'error');
+      if (file.size > 15 * 1024 * 1024) {
+        showToast('Cover image size exceeds 15 MB limit.', 'error');
         e.target.value = '';
         setCoverFile(null);
         if (!bookToEdit) setCoverPreview('');
         return;
       }
-      setCoverFile(file);
+
+      setIsCompressingCover(true);
       setCoverPreview(URL.createObjectURL(file));
+
+      try {
+        const result = await compressImage(file, { maxWidth: 1600, maxHeight: 2200, quality: 0.85 });
+        setCoverFile(result.file);
+        setCoverStats(result);
+        setCoverPreview(URL.createObjectURL(result.file));
+      } catch (err) {
+        console.error('Image compression failed, using original:', err);
+        setCoverFile(file);
+      } finally {
+        setIsCompressingCover(false);
+      }
     }
   };
 
-  const handleBookFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleBookFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      if (file.size > 10 * 1024 * 1024) {
-        showToast('Book document exceeds 10 MB limit. Please select a PDF file under 10 MB.', 'error');
+      if (file.size > 25 * 1024 * 1024) {
+        showToast('Book document exceeds 25 MB limit.', 'error');
         e.target.value = '';
         return;
       }
-      setBookFile(file);
+
+      setIsCompressingBook(true);
+      try {
+        const result = await compressPdf(file);
+        setBookFile(result.file);
+        setBookStats(result);
+      } catch (err) {
+        console.error('PDF compression failed, using original:', err);
+        setBookFile(file);
+      } finally {
+        setIsCompressingBook(false);
+      }
     }
   };
 
@@ -213,7 +246,7 @@ export const BookUploadModal: React.FC<BookUploadModalProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
             
             {/* Cover Image */}
-            <div>
+            <div className="space-y-2">
               <label className="block text-xs font-bold text-slate-700 mb-1">
                 Cover Image {!bookToEdit && '*'}
               </label>
@@ -239,16 +272,24 @@ export const BookUploadModal: React.FC<BookUploadModalProps> = ({
                   <>
                     <ImageIcon className="w-6 h-6 text-indigo-600 mb-1" />
                     <span className="text-xs font-semibold text-slate-700">
-                      {coverFile ? coverFile.name : 'Choose Image (JPG/PNG)'}
+                      {coverFile ? coverFile.name : 'Choose Image (JPG/PNG/WebP)'}
                     </span>
-                    <span className="text-[10px] text-slate-400 mt-0.5">Max size: 2 MB</span>
+                    <span className="text-[10px] text-slate-400 mt-0.5">Max size: 15 MB (Auto-compressed)</span>
                   </>
                 )}
               </label>
+
+              {(isCompressingCover || coverStats) && (
+                <CompressionStatsBadge
+                  type="image"
+                  stats={coverStats}
+                  isCompressing={isCompressingCover}
+                />
+              )}
             </div>
 
             {/* PDF File */}
-            <div>
+            <div className="space-y-2">
               <label className="block text-xs font-bold text-slate-700 mb-1">
                 eBook Document (PDF) {!bookToEdit && '*'}
               </label>
@@ -263,8 +304,16 @@ export const BookUploadModal: React.FC<BookUploadModalProps> = ({
                 <span className="text-xs font-semibold text-slate-700 truncate max-w-45">
                   {bookFile ? bookFile.name : bookToEdit ? 'Keep existing PDF or replace' : 'Select PDF File'}
                 </span>
-                <span className="text-[10px] text-slate-400 mt-0.5">Max size: 10 MB (PDF)</span>
+                <span className="text-[10px] text-slate-400 mt-0.5">Max size: 25 MB (Auto-optimized)</span>
               </label>
+
+              {(isCompressingBook || bookStats) && (
+                <CompressionStatsBadge
+                  type="pdf"
+                  stats={bookStats}
+                  isCompressing={isCompressingBook}
+                />
+              )}
             </div>
 
           </div>

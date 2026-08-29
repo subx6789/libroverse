@@ -19,6 +19,8 @@ const uploadStreamToCloudinary = (
     resource_type: "image" | "raw" | "auto";
     format?: string;
     filename_override?: string;
+    quality?: string | number;
+    fetch_format?: string;
   }
 ): Promise<any> => {
   return new Promise((resolve, reject) => {
@@ -114,6 +116,8 @@ const createBook = async (req: Request, res: Response, next: NextFunction) => {
     const coverUploadPromise = uploadStreamToCloudinary(coverFile.buffer, {
       folder: "book-covers",
       resource_type: "image",
+      quality: "auto:good",
+      fetch_format: "auto",
       filename_override: coverFile.originalname,
     });
 
@@ -220,12 +224,14 @@ const updateBook = async (req: Request, res: Response, next: NextFunction) => {
 
     // Validate size if uploading new cover image
     if (coverFile) {
-      if (coverFile.size > 2 * 1024 * 1024) {
-        return next(createHttpError(400, "Cover image size must be 2 MB or less"));
+      if (coverFile.size > 15 * 1024 * 1024) {
+        return next(createHttpError(400, "Cover image size must be 15 MB or less"));
       }
       const uploadRes = await uploadStreamToCloudinary(coverFile.buffer, {
         folder: "book-covers",
         resource_type: "image",
+        quality: "auto:good",
+        fetch_format: "auto",
         filename_override: coverFile.originalname,
       });
       completeCoverImage = uploadRes.secure_url || uploadRes.url;
@@ -234,8 +240,8 @@ const updateBook = async (req: Request, res: Response, next: NextFunction) => {
 
     // Validate size if uploading new PDF file
     if (pdfFile) {
-      if (pdfFile.size > 10 * 1024 * 1024) {
-        return next(createHttpError(400, "Book PDF must be 10 MB or less"));
+      if (pdfFile.size > 25 * 1024 * 1024) {
+        return next(createHttpError(400, "Book PDF must be 25 MB or less"));
       }
       const uploadPdfRes = await uploadStreamToCloudinary(pdfFile.buffer, {
         folder: "book-pdfs",

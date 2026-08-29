@@ -9,10 +9,14 @@ interface PostState {
   error: string | null;
   selectedTopic: string;
   sortBy: 'latest' | 'top' | 'discussed';
+  feedTab: 'for-you' | 'following';
+  activeHashtag: string | null;
 
   setSelectedTopic: (topic: string) => void;
   setSortBy: (sort: 'latest' | 'top' | 'discussed') => void;
-  fetchPosts: (search?: string) => Promise<void>;
+  setFeedTab: (feedTab: 'for-you' | 'following', userId?: string) => void;
+  setActiveHashtag: (hashtag: string | null) => void;
+  fetchPosts: (search?: string, currentUserId?: string) => Promise<void>;
   createPost: (data: {
     title?: string;
     content: string;
@@ -33,9 +37,11 @@ export const usePostStore = create<PostState>((set, get) => ({
   error: null,
   selectedTopic: 'All',
   sortBy: 'latest',
+  feedTab: 'for-you',
+  activeHashtag: null,
 
   setSelectedTopic: (selectedTopic) => {
-    set({ selectedTopic });
+    set({ selectedTopic, activeHashtag: null });
     get().fetchPosts();
   },
 
@@ -44,14 +50,37 @@ export const usePostStore = create<PostState>((set, get) => ({
     get().fetchPosts();
   },
 
-  fetchPosts: async (search) => {
+  setFeedTab: (feedTab, userId) => {
+    set({ feedTab });
+    get().fetchPosts(undefined, userId);
+  },
+
+  setActiveHashtag: (activeHashtag) => {
+    set({ activeHashtag });
+    if (activeHashtag) {
+      get().fetchPosts(activeHashtag);
+    } else {
+      get().fetchPosts();
+    }
+  },
+
+  fetchPosts: async (search, currentUserId) => {
     try {
       set({ isLoading: true, error: null });
-      const { selectedTopic, sortBy } = get();
+      const { selectedTopic, sortBy, feedTab, activeHashtag } = get();
       const params: any = {};
       if (selectedTopic && selectedTopic !== 'All') params.topic = selectedTopic;
       if (sortBy) params.sort = sortBy;
-      if (search) params.search = search;
+      if (search) {
+        params.search = search;
+      } else if (activeHashtag) {
+        params.search = activeHashtag;
+      }
+
+      if (feedTab === 'following' && currentUserId) {
+        params.feed = 'following';
+        params.userId = currentUserId;
+      }
 
       const res = await api.get<Post[]>('/posts', { params });
       set({ posts: Array.isArray(res.data) ? res.data : [], isLoading: false });

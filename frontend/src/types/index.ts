@@ -8,7 +8,12 @@ export interface User {
   isBanned?: boolean;
   bannedReason?: string;
   savedPosts?: string[];
+  followers?: string[];
+  following?: string[];
+  followersCount?: number;
+  followingCount?: number;
   postsCount?: number;
+  isFollowing?: boolean;
   createdAt?: string;
 }
 

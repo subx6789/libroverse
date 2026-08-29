@@ -11,6 +11,8 @@ export interface User {
   isBanned?: boolean;
   bannedReason?: string;
   savedPosts?: (string | mongoose.Types.ObjectId)[];
+  followers?: (string | mongoose.Types.ObjectId)[];
+  following?: (string | mongoose.Types.ObjectId)[];
   createdAt: Date;
   updatedAt: Date;
 }

@@ -1,4 +1,5 @@
 import { NextFunction, Request, Response } from "express";
+import mongoose from "mongoose";
 import createHttpError from "http-errors";
 import userModel from "./userModel";
 import postModel from "../post/postModel";
@@ -238,4 +239,190 @@ const toggleSavePost = async (req: Request, res: Response, next: NextFunction) =
   }
 };
 
-export { createUser, loginUser, getSelf, listAllUsers, toggleUserBan, toggleSavePost };
+/**
+ * User: Toggle follow / unfollow another user
+ */
+const toggleFollowUser = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const _req = req as AuthRequest;
+    const currentUserId = _req.userId;
+    const targetUserId = Array.isArray(req.params.userId) ? req.params.userId[0] : req.params.userId;
+
+    if (!targetUserId) {
+      return next(createHttpError(400, "Target user ID is required"));
+    }
+
+    if (currentUserId === targetUserId) {
+      return next(createHttpError(400, "You cannot follow yourself"));
+    }
+
+    const currentUser = await userModel.findById(currentUserId);
+    const targetUser = await userModel.findById(targetUserId);
+
+    if (!currentUser || !targetUser) {
+      return next(createHttpError(404, "User not found"));
+    }
+
+    const followingList = (currentUser.following || []).map((id) => id.toString());
+    const isFollowing = followingList.includes(targetUserId);
+
+    if (isFollowing) {
+      // Unfollow
+      currentUser.following = (currentUser.following || []).filter(
+        (id) => id.toString() !== targetUserId
+      );
+      targetUser.followers = (targetUser.followers || []).filter(
+        (id) => id.toString() !== currentUserId
+      );
+    } else {
+      // Follow
+      if (!currentUser.following) currentUser.following = [];
+      if (!targetUser.followers) targetUser.followers = [];
+      currentUser.following.push(new mongoose.Types.ObjectId(targetUserId));
+      targetUser.followers.push(new mongoose.Types.ObjectId(currentUserId));
+    }
+
+    await Promise.all([currentUser.save(), targetUser.save()]);
+
+    res.json({
+      isFollowing: !isFollowing,
+      followersCount: (targetUser.followers || []).length,
+      followingCount: (targetUser.following || []).length,
+      targetUserId,
+    });
+  } catch (err: any) {
+    return next(createHttpError(500, `Error updating follow status: ${err?.message}`));
+  }
+};
+
+/**
+ * Public: Get reader profile with their follower counts and posts
+ */
+const getUserProfile = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const targetUserId = Array.isArray(req.params.userId) ? req.params.userId[0] : req.params.userId;
+    if (!targetUserId) {
+      return next(createHttpError(400, "User ID is required"));
+    }
+
+    const user = await userModel.findById(targetUserId).select("-password");
+    if (!user) {
+      return next(createHttpError(404, "User not found"));
+    }
+
+    // Fetch user's posts
+    const userPosts = await postModel
+      .find({ author: targetUserId })
+      .populate("author", "name email role avatar isBanned")
+      .populate("ebook_id", "title coverImage genre")
+      .sort({ createdAt: -1 });
+
+    const followersCount = (user.followers || []).length;
+    const followingCount = (user.following || []).length;
+
+    res.json({
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        avatar: user.avatar,
+        bio: user.bio || "",
+        isBanned: user.isBanned || false,
+        followers: user.followers || [],
+        following: user.following || [],
+        followersCount,
+        followingCount,
+        postsCount: userPosts.length,
+        createdAt: user.createdAt,
+      },
+      posts: userPosts,
+    });
+  } catch (err: any) {
+    return next(createHttpError(500, `Error fetching reader profile: ${err?.message}`));
+  }
+};
+
+/**
+ * Public: Get suggested readers / active bookworms to follow
+ */
+const getSuggestedUsers = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const _req = req as AuthRequest;
+    const currentUserId = _req.userId;
+
+    const filter: any = { isBanned: { $ne: true } };
+    if (currentUserId) {
+      filter._id = { $ne: new mongoose.Types.ObjectId(currentUserId) };
+    }
+
+    // Get up to 6 active users
+    const suggestedUsers = await userModel
+      .find(filter)
+      .select("-password")
+      .limit(6)
+      .lean();
+
+    // Map follower counts
+    const mapped = suggestedUsers.map((u) => ({
+      ...u,
+      followersCount: (u.followers || []).length,
+      followingCount: (u.following || []).length,
+      isFollowing: currentUserId
+        ? (u.followers || []).map((id: any) => id.toString()).includes(currentUserId)
+        : false,
+    }));
+
+    res.json(mapped);
+  } catch (err: any) {
+    return next(createHttpError(500, `Error fetching suggested readers: ${err?.message}`));
+  }
+};
+
+/**
+ * Public: Search users by name, email, or bio
+ */
+const searchUsers = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const query = req.query.q as string;
+    if (!query || !query.trim()) {
+      return res.json([]);
+    }
+
+    const users = await userModel
+      .find({
+        $or: [
+          { name: { $regex: query, $options: "i" } },
+          { email: { $regex: query, $options: "i" } },
+          { bio: { $regex: query, $options: "i" } },
+        ],
+        isBanned: { $ne: true },
+      })
+      .select("-password")
+      .limit(10)
+      .lean();
+
+    res.json(
+      users.map((u) => ({
+        ...u,
+        followersCount: (u.followers || []).length,
+        followingCount: (u.following || []).length,
+      }))
+    );
+  } catch (err: any) {
+    return next(createHttpError(500, `Error searching readers: ${err?.message}`));
+  }
+};
+
+export {
+  createUser,
+  loginUser,
+  getSelf,
+  listAllUsers,
+  toggleUserBan,
+  toggleSavePost,
+  toggleFollowUser,
+  getUserProfile,
+  getSuggestedUsers,
+  searchUsers,
+};
