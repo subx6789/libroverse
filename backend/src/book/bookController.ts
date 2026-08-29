@@ -65,20 +65,35 @@ const createBook = async (req: Request, res: Response, next: NextFunction) => {
     return next(createHttpError(400, "Both cover image and book PDF file are required"));
   }
 
-  // --- Strict In-Memory Size & Mime-type Gate ---
+  // --- Strict In-Memory Size, Mime-type, and Content Magic Bytes Gate ---
   const validImageMimes = ["image/jpeg", "image/png", "image/webp", "image/jpg"];
   if (!validImageMimes.includes(coverFile.mimetype)) {
     return next(createHttpError(400, "Cover must be a valid image (JPEG, PNG, WEBP)"));
   }
 
-  // Cover image must be <= 2 MB
-  if (coverFile.size > 2 * 1024 * 1024) {
-    return next(createHttpError(400, "Cover image size must be 2 MB or less"));
+  // Magic byte inspection for cover image
+  const isJpeg = coverFile.buffer[0] === 0xff && coverFile.buffer[1] === 0xd8 && coverFile.buffer[2] === 0xff;
+  const isPng = coverFile.buffer[0] === 0x89 && coverFile.buffer[1] === 0x50 && coverFile.buffer[2] === 0x4e && coverFile.buffer[3] === 0x47;
+  const isWebp = coverFile.buffer.toString("ascii", 0, 4) === "RIFF" && coverFile.buffer.toString("ascii", 8, 12) === "WEBP";
+
+  if (!isJpeg && !isPng && !isWebp) {
+    return next(createHttpError(400, "Cover image content is invalid or corrupted (failed magic bytes validation)"));
   }
 
-  // PDF file must be <= 10 MB
-  if (pdfFile.size > 10 * 1024 * 1024) {
-    return next(createHttpError(400, "Book PDF file size must be 10 MB or less"));
+  // Cover image must be <= 15 MB
+  if (coverFile.size > 15 * 1024 * 1024) {
+    return next(createHttpError(400, "Cover image size must be 15 MB or less"));
+  }
+
+  // PDF mime & magic byte inspection (%PDF- = 0x25 0x50 0x44 0x46)
+  const isPdfHeader = coverFile.buffer.length >= 4 && pdfFile.buffer.toString("ascii", 0, 4) === "%PDF";
+  if (!isPdfHeader || (pdfFile.mimetype !== "application/pdf" && !pdfFile.originalname.toLowerCase().endsWith(".pdf"))) {
+    return next(createHttpError(400, "Book document must be a valid PDF file"));
+  }
+
+  // PDF file must be <= 25 MB
+  if (pdfFile.size > 25 * 1024 * 1024) {
+    return next(createHttpError(400, "Book PDF file size must be 25 MB or less"));
   }
 
   const coverSizeMb = bytesToMb(coverFile.size);

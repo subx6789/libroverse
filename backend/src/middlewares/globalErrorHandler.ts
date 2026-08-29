@@ -3,25 +3,61 @@ import { HttpError } from "http-errors";
 import { config } from "../config/config";
 
 const globalErrorHandler = (
-  err: HttpError,
+  err: any,
   req: Request,
   res: Response,
   _next: NextFunction
 ) => {
-  const statusCode = err.statusCode || 500;
+  const statusCode = err.statusCode || err.status || 500;
   
-  // Log full error details server-side for debugging
-  console.error(`[Server Error ${statusCode}] ${req.method} ${req.originalUrl}:`, err);
+  // Full server-side error logging for debugging
+  console.error(`[Server Error ${statusCode}] ${req.method} ${req.originalUrl}:`, {
+    message: err.message,
+    name: err.name,
+    code: err.code,
+    stack: err.stack,
+  });
 
-  // Return clean generic message for internal server errors in production
-  let clientMessage = err.message || "An unexpected error occurred. Please try again.";
-  if (statusCode === 500 && config.env === "production") {
-    clientMessage = "An unexpected server error occurred. Please try again later.";
+  // Client-safe messaging: strip Mongo/Mongoose/Cloudinary/Node internal details
+  let clientMessage = "An unexpected error occurred. Please try again.";
+
+  // Handle known client-facing HTTP errors (4xx)
+  if (statusCode >= 400 && statusCode < 500) {
+    clientMessage = err.message || "Invalid request parameters.";
+  }
+
+  // Handle MongoDB Duplicate Key Error (11000)
+  if (err.code === 11000) {
+    const field = Object.keys(err.keyValue || {})[0] || "field";
+    clientMessage = `A record with this ${field} already exists.`;
+  }
+
+  // Handle Mongoose CastError (invalid ObjectId)
+  if (err.name === "CastError") {
+    clientMessage = "Resource not found or invalid identifier provided.";
+  }
+
+  // Handle Mongoose ValidationError
+  if (err.name === "ValidationError") {
+    const messages = Object.values(err.errors || {})
+      .map((e: any) => e.message)
+      .join(", ");
+    clientMessage = messages || "Validation error occurred.";
+  }
+
+  // For 500 internal server errors, ensure no raw DB string, path, or query leaks
+  if (statusCode === 500) {
+    if (config.env === "production" || !err.expose) {
+      clientMessage = "An internal server error occurred. Please try again later.";
+    } else {
+      // In dev mode, provide clean high-level message without raw file paths
+      clientMessage = (err.message || "").replace(/\/[\w.-]+/g, "[path]") || "Internal Server Error";
+    }
   }
 
   return res.status(statusCode).json({
     message: clientMessage,
-    errorStack: config.env === "development" ? err.stack : undefined,
   });
 };
+
 export default globalErrorHandler;

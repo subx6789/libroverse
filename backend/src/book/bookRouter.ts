@@ -20,6 +20,16 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB in-memory gate
 });
 
+import {
+  validateBody,
+  validateParams,
+} from "../middlewares/validate";
+import {
+  createBookSchema,
+  updateBookSchema,
+  bookIdParamSchema,
+} from "../schemas/validationSchemas";
+
 // routes
 bookRouter.post(
   "/",
@@ -30,23 +40,26 @@ bookRouter.post(
     { name: "file", maxCount: 1 },
     { name: "pdf", maxCount: 1 },
   ]),
+  validateBody(createBookSchema),
   createBook
 );
 
 bookRouter.put(
   "/:bookId",
   authenticate,
+  validateParams(bookIdParamSchema),
   upload.fields([
     { name: "coverImage", maxCount: 1 },
     { name: "cover", maxCount: 1 },
     { name: "file", maxCount: 1 },
     { name: "pdf", maxCount: 1 },
   ]),
+  validateBody(updateBookSchema),
   updateBook
 );
 
 bookRouter.get("/", listBooks);
-bookRouter.get("/:bookId", getSingleBook);
-bookRouter.delete("/:bookId", authenticate, deleteBook);
+bookRouter.get("/:bookId", validateParams(bookIdParamSchema), getSingleBook);
+bookRouter.delete("/:bookId", authenticate, validateParams(bookIdParamSchema), deleteBook);
 
 export default bookRouter;
