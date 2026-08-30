@@ -407,6 +407,24 @@ const updatePost = async (req: Request, res: Response, next: NextFunction) => {
           return next(createHttpError(400, "Attached image file is invalid or corrupted"));
         }
 
+        // Delete old post media from Cloudinary if replacing
+        if (post.media_url && post.media_url.includes("cloudinary")) {
+          try {
+            const parts = post.media_url.split("/");
+            const folderIndex = parts.findIndex((p) => p === "community-media");
+            const publicId = folderIndex !== -1 
+              ? parts.slice(folderIndex).join("/").replace(/\.[^/.]+$/, "")
+              : `community-media/${parts.at(-1)?.split(".")[0]}`;
+            if (publicId) {
+              await cloudinary.uploader.destroy(publicId, {
+                resource_type: post.media_type === "video" ? "video" : "image",
+              });
+            }
+          } catch (cldErr) {
+            console.warn("Could not delete old post media from Cloudinary:", cldErr);
+          }
+        }
+
         const uploadResult = await uploadStreamToCloudinary(file.buffer, {
           folder: "community-media",
           resource_type: "image",
@@ -420,6 +438,25 @@ const updatePost = async (req: Request, res: Response, next: NextFunction) => {
         if (file.size > 10 * 1024 * 1024) {
           return next(createHttpError(400, "Attached video exceeds 10 MB limit"));
         }
+
+        // Delete old post media from Cloudinary if replacing
+        if (post.media_url && post.media_url.includes("cloudinary")) {
+          try {
+            const parts = post.media_url.split("/");
+            const folderIndex = parts.findIndex((p) => p === "community-media");
+            const publicId = folderIndex !== -1 
+              ? parts.slice(folderIndex).join("/").replace(/\.[^/.]+$/, "")
+              : `community-media/${parts.at(-1)?.split(".")[0]}`;
+            if (publicId) {
+              await cloudinary.uploader.destroy(publicId, {
+                resource_type: post.media_type === "video" ? "video" : "image",
+              });
+            }
+          } catch (cldErr) {
+            console.warn("Could not delete old post media from Cloudinary:", cldErr);
+          }
+        }
+
         const uploadResult = await uploadStreamToCloudinary(file.buffer, {
           folder: "community-media",
           resource_type: "video",

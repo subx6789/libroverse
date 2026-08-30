@@ -591,6 +591,22 @@ const updateProfile = async (req: Request, res: Response, next: NextFunction) =>
       }
     }
 
+    // Robust Cloudinary public ID extraction helper
+    const getPublicIdFromUrl = (url: string, defaultFolder = "user-avatars") => {
+      try {
+        const parts = url.split("/");
+        const folderIndex = parts.findIndex((p) => p === defaultFolder || p === "user-covers");
+        if (folderIndex !== -1 && folderIndex < parts.length - 1) {
+          const pathWithExt = parts.slice(folderIndex).join("/");
+          return pathWithExt.replace(/\.[^/.]+$/, "");
+        }
+        const fileWithExt = parts.at(-1) || "";
+        return `${defaultFolder}/${fileWithExt.replace(/\.[^/.]+$/, "")}`;
+      } catch {
+        return null;
+      }
+    };
+
     const files = req.files as { [fieldname: string]: Express.Multer.File[] };
     const avatarFile = files?.avatar?.[0];
     const coverFile = files?.coverImage?.[0];
@@ -599,6 +615,19 @@ const updateProfile = async (req: Request, res: Response, next: NextFunction) =>
       if (avatarFile.size > 5 * 1024 * 1024) {
         return next(createHttpError(400, "Avatar must be under 5 MB"));
       }
+
+      // Delete previous avatar from Cloudinary if replacing
+      if (user.avatar && user.avatar.includes("cloudinary")) {
+        const oldAvatarPublicId = getPublicIdFromUrl(user.avatar, "user-avatars");
+        if (oldAvatarPublicId) {
+          try {
+            await cloudinary.uploader.destroy(oldAvatarPublicId, { resource_type: "image" });
+          } catch (cldErr) {
+            console.warn("Could not delete old avatar from Cloudinary:", cldErr);
+          }
+        }
+      }
+
       const avatarUpload = await uploadStreamToCloudinary(avatarFile.buffer, {
         folder: "user-avatars",
         resource_type: "image",
@@ -613,6 +642,19 @@ const updateProfile = async (req: Request, res: Response, next: NextFunction) =>
       if (coverFile.size > 8 * 1024 * 1024) {
         return next(createHttpError(400, "Cover image must be under 8 MB"));
       }
+
+      // Delete previous cover banner from Cloudinary if replacing
+      if (user.coverImage && user.coverImage.includes("cloudinary")) {
+        const oldCoverPublicId = getPublicIdFromUrl(user.coverImage, "user-covers");
+        if (oldCoverPublicId) {
+          try {
+            await cloudinary.uploader.destroy(oldCoverPublicId, { resource_type: "image" });
+          } catch (cldErr) {
+            console.warn("Could not delete old cover banner from Cloudinary:", cldErr);
+          }
+        }
+      }
+
       const coverUpload = await uploadStreamToCloudinary(coverFile.buffer, {
         folder: "user-covers",
         resource_type: "image",

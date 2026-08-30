@@ -241,11 +241,40 @@ const updateBook = async (req: Request, res: Response, next: NextFunction) => {
     let coverSizeMb = book.pdf_size_mb || 0;
     let pdfSizeMb = book.cover_size_mb || 0;
 
+    // Robust Cloudinary public ID extraction helper
+    const getPublicIdFromUrl = (url: string, defaultFolder = "book-pdfs") => {
+      try {
+        const parts = url.split("/");
+        const folderIndex = parts.findIndex((p) => p === defaultFolder || p === "book-covers");
+        if (folderIndex !== -1 && folderIndex < parts.length - 1) {
+          const pathWithExt = parts.slice(folderIndex).join("/");
+          return pathWithExt.replace(/\.[^/.]+$/, "");
+        }
+        const fileWithExt = parts.at(-1) || "";
+        return `${defaultFolder}/${fileWithExt.replace(/\.[^/.]+$/, "")}`;
+      } catch {
+        return null;
+      }
+    };
+
     // Validate size if uploading new cover image (3 MB max)
     if (coverFile) {
       if (coverFile.size > config.maxImageSizeMb * 1024 * 1024) {
         return next(createHttpError(400, `Cover image size must be ${config.maxImageSizeMb} MB or less`));
       }
+
+      // Delete old cover image from Cloudinary if replacing
+      if (book.coverImage && book.coverImage.includes("cloudinary")) {
+        const oldCoverPublicId = getPublicIdFromUrl(book.coverImage, "book-covers");
+        if (oldCoverPublicId) {
+          try {
+            await cloudinary.uploader.destroy(oldCoverPublicId, { resource_type: "image" });
+          } catch (cldErr) {
+            console.warn("Could not delete old cover image from Cloudinary:", cldErr);
+          }
+        }
+      }
+
       const uploadRes = await uploadStreamToCloudinary(coverFile.buffer, {
         folder: "book-covers",
         resource_type: "image",
@@ -262,6 +291,23 @@ const updateBook = async (req: Request, res: Response, next: NextFunction) => {
       if (pdfFile.size > config.maxPdfSizeMb * 1024 * 1024) {
         return next(createHttpError(400, `Book PDF must be ${config.maxPdfSizeMb} MB or less`));
       }
+
+      // Delete old PDF from Cloudinary if replacing
+      if (book.file && book.file.includes("cloudinary")) {
+        const oldPdfPublicId = getPublicIdFromUrl(book.file, "book-pdfs");
+        if (oldPdfPublicId) {
+          try {
+            await Promise.allSettled([
+              cloudinary.uploader.destroy(oldPdfPublicId, { resource_type: "image" }),
+              cloudinary.uploader.destroy(oldPdfPublicId, { resource_type: "raw" }),
+              cloudinary.uploader.destroy(`${oldPdfPublicId}.pdf`, { resource_type: "raw" }),
+            ]);
+          } catch (cldErr) {
+            console.warn("Could not delete old PDF document from Cloudinary:", cldErr);
+          }
+        }
+      }
+
       const uploadPdfRes = await uploadStreamToCloudinary(pdfFile.buffer, {
         folder: "book-pdfs",
         resource_type: "image",
