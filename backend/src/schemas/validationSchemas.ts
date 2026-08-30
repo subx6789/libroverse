@@ -131,7 +131,11 @@ export const createPostSchema = z.object({
     .min(1, "Post content is required")
     .max(500, "Post content cannot exceed 500 characters")
     .trim(),
-  topic: z.string().max(60, "Topic too long").optional(),
+  topic: z
+    .string()
+    .min(1, "Channel/topic is required and post must belong to a channel")
+    .max(60, "Topic too long")
+    .trim(),
   ebook_id: z.string().regex(objectIdRegex, "Invalid eBook ID").optional().or(z.literal("")),
 });
 
@@ -142,7 +146,12 @@ export const updatePostSchema = z.object({
     .min(1, "Post content is required")
     .max(500, "Post content cannot exceed 500 characters")
     .trim(),
-  topic: z.string().max(60, "Topic too long").optional(),
+  topic: z
+    .string()
+    .min(1, "Channel/topic is required and post must belong to a channel")
+    .max(60, "Topic too long")
+    .trim()
+    .optional(),
   removeMedia: z.union([z.boolean(), z.literal("true"), z.literal("false")]).optional(),
 });
 

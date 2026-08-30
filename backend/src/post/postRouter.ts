@@ -3,6 +3,7 @@ import multer from "multer";
 import {
   createPost,
   listPosts,
+  getChannels,
   toggleLikePost,
   addComment,
   sharePost,
@@ -31,6 +32,7 @@ import {
 } from "../schemas/validationSchemas";
 
 // Routes
+postRouter.get("/channels", getChannels);
 postRouter.get("/", listPosts);
 postRouter.post(
   "/",

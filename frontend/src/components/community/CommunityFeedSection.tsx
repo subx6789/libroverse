@@ -26,21 +26,14 @@ interface CommunityFeedSectionProps {
   onNavigateStore: () => void;
 }
 
-const TRENDING_HASHTAGS = [
-  { tag: '#ReadingGoals', count: '1.2k posts' },
-  { tag: '#SciFi', count: '890 posts' },
-  { tag: '#Philosophy', count: '740 posts' },
-  { tag: '#BookReview', count: '630 posts' },
-  { tag: '#TechNotes', count: '510 posts' },
-  { tag: '#SelfGrowth', count: '480 posts' },
-];
-
 export const CommunityFeedSection: React.FC<CommunityFeedSectionProps> = ({
   onOpenAuth,
   onNavigateStore,
 }) => {
   const {
     posts,
+    channels,
+    fetchChannels,
     fetchPosts,
     isLoading,
     selectedTopic,
@@ -63,17 +56,34 @@ export const CommunityFeedSection: React.FC<CommunityFeedSectionProps> = ({
 
   useEffect(() => {
     fetchPosts(undefined, user?._id);
-  }, [fetchPosts, user?._id]);
+    fetchChannels();
+  }, [fetchPosts, fetchChannels, user?._id]);
 
-  const topics = [
-    'All',
-    'General Discussion',
-    'Book Reviews & Ratings',
-    'Reading Notes & Highlights',
-    'Tech & Software Architecture',
-    'Science Fiction & Fantasy',
-    'Self-Improvement & Habits',
-  ];
+  const topics = ['All', ...channels];
+
+  // Dynamically extract hashtags and frequencies from real community posts
+  const trendingHashtags = React.useMemo(() => {
+    const counts: Record<string, number> = {};
+    posts.forEach((post) => {
+      if (post.content) {
+        const matches = post.content.match(/#[a-zA-Z0-9_]+/g);
+        if (matches) {
+          matches.forEach((tag) => {
+            counts[tag] = (counts[tag] || 0) + 1;
+          });
+        }
+      }
+    });
+
+    return Object.entries(counts)
+      .map(([tag, count]) => ({
+        tag,
+        count: count === 1 ? '1 post' : `${count} posts`,
+        numericCount: count,
+      }))
+      .sort((a, b) => b.numericCount - a.numericCount)
+      .slice(0, 6);
+  }, [posts]);
 
   const handleSearchChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
@@ -371,28 +381,30 @@ export const CommunityFeedSection: React.FC<CommunityFeedSectionProps> = ({
           </div>
 
           {/* Trending Hashtags Card */}
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-4 space-y-3">
-            <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-              <TrendingUp className="w-4 h-4 text-sky-500" />
-              <span>Trending in LibroVerse</span>
-            </h3>
+          {trendingHashtags.length > 0 && (
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-4 space-y-3">
+              <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                <TrendingUp className="w-4 h-4 text-sky-500" />
+                <span>Trending in LibroVerse</span>
+              </h3>
 
-            <div className="space-y-2">
-              {TRENDING_HASHTAGS.map((item) => (
-                <div
-                  key={item.tag}
-                  onClick={() => handleHashtagClick(item.tag)}
-                  className="flex items-center justify-between p-2 hover:bg-slate-50 rounded-xl cursor-pointer transition-colors group"
-                >
-                  <div>
-                    <p className="text-xs font-bold text-sky-500 group-hover:underline">{item.tag}</p>
-                    <p className="text-[10px] text-slate-400">{item.count}</p>
+              <div className="space-y-2">
+                {trendingHashtags.map((item) => (
+                  <div
+                    key={item.tag}
+                    onClick={() => handleHashtagClick(item.tag)}
+                    className="flex items-center justify-between p-2 hover:bg-slate-50 rounded-xl cursor-pointer transition-colors group"
+                  >
+                    <div>
+                      <p className="text-xs font-bold text-sky-500 group-hover:underline">{item.tag}</p>
+                      <p className="text-[10px] text-slate-400">{item.count}</p>
+                    </div>
+                    <span className="text-slate-400 text-xs group-hover:text-sky-500 transition-colors">➔</span>
                   </div>
-                  <span className="text-slate-400 text-xs group-hover:text-sky-500 transition-colors">➔</span>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Suggested Readers Widget */}
           <SuggestedUsersWidget

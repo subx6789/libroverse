@@ -1,20 +1,27 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Filter, ArrowUpDown } from "lucide-react";
 import { useBookStore } from "../../store/useBookStore";
-
-const GENRES = [
-  "All",
-  "Computer Science",
-  "Software Engineering",
-  "Business & Startups",
-  "Self Improvement",
-  "Productivity",
-  "Fiction",
-  "Science",
-];
+import { useCategoryStore } from "../../store/useCategoryStore";
 
 export const BookFilterBar: React.FC = () => {
-  const { selectedGenre, setSelectedGenre, sortBy, setSortBy } = useBookStore();
+  const { selectedGenre, setSelectedGenre, sortBy, setSortBy, books } = useBookStore();
+  const { categories, fetchCategories } = useCategoryStore();
+
+  useEffect(() => {
+    fetchCategories();
+  }, [fetchCategories]);
+
+  // Dynamically compute unique genre list from database categories and books
+  const dynamicGenres = React.useMemo(() => {
+    const genreSet = new Set<string>();
+    categories.forEach((c) => {
+      if (c.name) genreSet.add(c.name);
+    });
+    books.forEach((b) => {
+      if (b.genre) genreSet.add(b.genre);
+    });
+    return ["All", ...Array.from(genreSet)];
+  }, [categories, books]);
 
   return (
     <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 py-3 border-b border-slate-200">
@@ -24,7 +31,7 @@ export const BookFilterBar: React.FC = () => {
           <Filter className="w-3 h-3" />
           Genres:
         </span>
-        {GENRES.map((genre) => {
+        {dynamicGenres.map((genre) => {
           const isSelected = selectedGenre === genre;
           return (
             <button

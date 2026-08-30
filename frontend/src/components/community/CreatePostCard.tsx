@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from "react";
 import {
   Send,
   Image as ImageIcon,
@@ -7,43 +7,57 @@ import {
   Loader2,
   AtSign,
   Hash,
-} from 'lucide-react';
-import { usePostStore } from '../../store/usePostStore';
-import { useUserStore } from '../../store/useUserStore';
-import { useAuthStore } from '../../store/useAuthStore';
-import { useToast } from '../ui/ToastContext';
-import { compressImage, compressVideo } from '../../utils/mediaCompressor';
-import { HighlightedTextarea } from './HighlightedTextarea';
-import { MentionAutocomplete } from './MentionAutocomplete';
+} from "lucide-react";
+import { usePostStore } from "../../store/usePostStore";
+import { useUserStore } from "../../store/useUserStore";
+import { useAuthStore } from "../../store/useAuthStore";
+import { useToast } from "../ui/ToastContext";
+import { compressImage, compressVideo } from "../../utils/mediaCompressor";
+import { HighlightedTextarea } from "./HighlightedTextarea";
+import { MentionAutocomplete } from "./MentionAutocomplete";
 
 interface CreatePostCardProps {
   onOpenAuth: () => void;
 }
 
-const POPULAR_HASHTAGS = [
-  '#ReadingGoals',
-  '#BookReview',
-  '#SciFi',
-  '#Philosophy',
-  '#TechNotes',
-  '#SelfGrowth',
-];
-
-export const CreatePostCard: React.FC<CreatePostCardProps> = ({ onOpenAuth }) => {
-  const { createPost, isSubmitting } = usePostStore();
+export const CreatePostCard: React.FC<CreatePostCardProps> = ({
+  onOpenAuth,
+}) => {
+  const { createPost, isSubmitting, selectedTopic, posts, channels, fetchChannels } = usePostStore();
   const { searchMentions } = useUserStore();
   const { user } = useAuthStore();
   const { showToast } = useToast();
 
-  const [content, setContent] = useState('');
-  const [topic, setTopic] = useState('General Discussion');
+  const [content, setContent] = useState("");
+  const [topic, setTopic] = useState(
+    selectedTopic && selectedTopic !== "All"
+      ? selectedTopic
+      : channels[0] || "General Discussion",
+  );
+
+  useEffect(() => {
+    fetchChannels();
+  }, [fetchChannels]);
+
+  // Keep topic in sync when user switches channel tab or when channels load
+  useEffect(() => {
+    if (selectedTopic && selectedTopic !== "All") {
+      setTopic(selectedTopic);
+    } else if (!topic && channels.length > 0) {
+      setTopic(channels[0]);
+    }
+  }, [selectedTopic, channels]);
+
   const [mediaFile, setMediaFile] = useState<File | null>(null);
-  const [mediaPreview, setMediaPreview] = useState<string>('');
-  const [mediaType, setMediaType] = useState<'image' | 'video' | null>(null);
+  const [mediaPreview, setMediaPreview] = useState<string>("");
+  const [mediaType, setMediaType] = useState<"image" | "video" | null>(null);
   const [isCompressingMedia, setIsCompressingMedia] = useState(false);
 
   // Mention Autocomplete state
-  const [mentionResults, setMentionResults] = useState<{ users: any[]; books: any[] }>({
+  const [mentionResults, setMentionResults] = useState<{
+    users: any[];
+    books: any[];
+  }>({
     users: [],
     books: [],
   });
@@ -64,7 +78,7 @@ export const CreatePostCard: React.FC<CreatePostCardProps> = ({ onOpenAuth }) =>
             const data = await searchMentions(query);
             setMentionResults(data);
           } catch (e) {
-            console.warn('Mention search failed', e);
+            console.warn("Mention search failed", e);
           } finally {
             setIsSearchingMentions(false);
           }
@@ -76,8 +90,12 @@ export const CreatePostCard: React.FC<CreatePostCardProps> = ({ onOpenAuth }) =>
     }
   }, [content, searchMentions]);
 
-  const handleSelectUserMention = (targetUser: { name: string; username?: string }) => {
-    const handle = targetUser.username || targetUser.name.toLowerCase().replace(/\s+/g, '-');
+  const handleSelectUserMention = (targetUser: {
+    name: string;
+    username?: string;
+  }) => {
+    const handle =
+      targetUser.username || targetUser.name.toLowerCase().replace(/\s+/g, "-");
     setContent((prev) => {
       return prev.replace(/@([a-zA-Z0-9_\s-]*)$/, `@${handle} `);
     });
@@ -86,7 +104,7 @@ export const CreatePostCard: React.FC<CreatePostCardProps> = ({ onOpenAuth }) =>
   };
 
   const handleSelectBookMention = (book: { title: string }) => {
-    const bookTag = book.title.replace(/\s+/g, '-');
+    const bookTag = book.title.replace(/\s+/g, "-");
     setContent((prev) => {
       return prev.replace(/@([a-zA-Z0-9_\s-]*)$/, `@${bookTag} `);
     });
@@ -104,20 +122,20 @@ export const CreatePostCard: React.FC<CreatePostCardProps> = ({ onOpenAuth }) =>
 
   const handleMediaChange = async (
     e: React.ChangeEvent<HTMLInputElement>,
-    type: 'image' | 'video'
+    type: "image" | "video",
   ) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
 
-      if (type === 'image' && file.size > 15 * 1024 * 1024) {
-        showToast('Image attachment exceeds 15 MB limit', 'error');
-        e.target.value = '';
+      if (type === "image" && file.size > 15 * 1024 * 1024) {
+        showToast("Image attachment exceeds 15 MB limit", "error");
+        e.target.value = "";
         return;
       }
 
-      if (type === 'video' && file.size > 50 * 1024 * 1024) {
-        showToast('Video attachment exceeds 50 MB limit', 'error');
-        e.target.value = '';
+      if (type === "video" && file.size > 50 * 1024 * 1024) {
+        showToast("Video attachment exceeds 50 MB limit", "error");
+        e.target.value = "";
         return;
       }
 
@@ -126,7 +144,7 @@ export const CreatePostCard: React.FC<CreatePostCardProps> = ({ onOpenAuth }) =>
       setIsCompressingMedia(true);
 
       try {
-        if (type === 'image') {
+        if (type === "image") {
           const result = await compressImage(file, {
             maxWidth: 1400,
             maxHeight: 1400,
@@ -139,7 +157,7 @@ export const CreatePostCard: React.FC<CreatePostCardProps> = ({ onOpenAuth }) =>
           setMediaFile(result.file);
         }
       } catch (err) {
-        console.error('Media optimization failed, using original:', err);
+        console.error("Media optimization failed, using original:", err);
         setMediaFile(file);
       } finally {
         setIsCompressingMedia(false);
@@ -150,7 +168,7 @@ export const CreatePostCard: React.FC<CreatePostCardProps> = ({ onOpenAuth }) =>
   const removeMedia = () => {
     setMediaFile(null);
     setMediaType(null);
-    setMediaPreview('');
+    setMediaPreview("");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -162,7 +180,7 @@ export const CreatePostCard: React.FC<CreatePostCardProps> = ({ onOpenAuth }) =>
     }
 
     if (!content.trim()) {
-      showToast('Please type your thought, quote, or review', 'error');
+      showToast("Please type your thought, quote, or review", "error");
       return;
     }
 
@@ -173,11 +191,11 @@ export const CreatePostCard: React.FC<CreatePostCardProps> = ({ onOpenAuth }) =>
         media: mediaFile || undefined,
       });
 
-      showToast('Thought posted to reader feed!', 'success');
-      setContent('');
+      showToast("Thought posted to reader feed!", "success");
+      setContent("");
       removeMedia();
     } catch (err: any) {
-      showToast(err.message || 'Failed to publish post', 'error');
+      showToast(err.message || "Failed to publish post", "error");
     }
   };
 
@@ -198,11 +216,31 @@ export const CreatePostCard: React.FC<CreatePostCardProps> = ({ onOpenAuth }) =>
                 user.name.charAt(0).toUpperCase()
               )
             ) : (
-              '👤'
+              "👤"
             )}
           </div>
 
           <div className="flex-1 space-y-2 relative">
+            {/* Channel / Topic Selector */}
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-bold text-slate-500 flex items-center gap-1">
+                <Hash className="w-3 h-3 text-indigo-600" />
+                <span>Channel:</span>
+              </span>
+              <select
+                value={topic}
+                onChange={(e) => setTopic(e.target.value)}
+                required
+                className="text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200/80 border border-slate-200 rounded-md px-2 py-1 outline-none focus:ring-2 focus:ring-indigo-500/20 transition-colors cursor-pointer"
+              >
+                {channels.map((ch) => (
+                  <option key={ch} value={ch}>
+                    {ch}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <HighlightedTextarea
               textareaRef={textareaRef}
               rows={3}
@@ -210,8 +248,8 @@ export const CreatePostCard: React.FC<CreatePostCardProps> = ({ onOpenAuth }) =>
               onChange={(val) => setContent(val)}
               placeholder={
                 user
-                  ? `What are you reading or thinking, ${user.name.split(' ')[0]}? Use #hashtags and @mentions...`
-                  : 'Join the community to post thoughts, quotes, and @tag books/users...'
+                  ? `What are you reading or thinking, ${user.name.split(" ")[0]}? Use #hashtags and @mentions...`
+                  : "Join the community to post thoughts, quotes, and @tag books/users..."
               }
             />
 
@@ -237,7 +275,7 @@ export const CreatePostCard: React.FC<CreatePostCardProps> = ({ onOpenAuth }) =>
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
-                  {mediaType === 'image' ? (
+                  {mediaType === "image" ? (
                     <img
                       src={mediaPreview}
                       alt="Upload Preview"
@@ -256,23 +294,36 @@ export const CreatePostCard: React.FC<CreatePostCardProps> = ({ onOpenAuth }) =>
           </div>
         </div>
 
-        {/* Popular Hashtag Quick-Pills */}
-        <div className="flex items-center gap-1.5 flex-wrap pt-1 border-t border-slate-100/60">
-          <span className="text-[11px] font-semibold text-slate-400 flex items-center gap-1 mr-1">
-            <Hash className="w-3 h-3 text-sky-500" />
-            <span>Trending:</span>
-          </span>
-          {POPULAR_HASHTAGS.map((tag) => (
-            <button
-              key={tag}
-              type="button"
-              onClick={() => handleInsertHashtag(tag)}
-              className="text-[11px] font-medium text-sky-600 hover:text-sky-700 bg-sky-50/70 hover:bg-sky-100/80 px-2 py-0.5 rounded-sm transition-colors cursor-pointer"
-            >
-              {tag}
-            </button>
-          ))}
-        </div>
+        {/* Dynamic Hashtag Quick-Pills from Live Posts */}
+        {(() => {
+          const uniqueTags = Array.from(
+            new Set(
+              posts
+                .flatMap((p) => (p.content ? p.content.match(/#[a-zA-Z0-9_]+/g) || [] : []))
+            )
+          ).slice(0, 6);
+
+          if (uniqueTags.length === 0) return null;
+
+          return (
+            <div className="flex items-center gap-1.5 flex-wrap pt-1 border-t border-slate-100/60">
+              <span className="text-[11px] font-semibold text-slate-400 flex items-center gap-1 mr-1">
+                <Hash className="w-3 h-3 text-sky-500" />
+                <span>Trending:</span>
+              </span>
+              {uniqueTags.map((tag) => (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() => handleInsertHashtag(tag)}
+                  className="text-[11px] font-medium text-sky-600 hover:text-sky-700 bg-sky-50/70 hover:bg-sky-100/80 px-2 py-0.5 rounded-sm transition-colors cursor-pointer"
+                >
+                  {tag}
+                </button>
+              ))}
+            </div>
+          );
+        })()}
 
         {/* Toolbar & Fast Post Button */}
         <div className="flex items-center justify-between pt-2 border-t border-slate-100">
@@ -299,7 +350,7 @@ export const CreatePostCard: React.FC<CreatePostCardProps> = ({ onOpenAuth }) =>
               <input
                 type="file"
                 accept="image/*"
-                onChange={(e) => handleMediaChange(e, 'image')}
+                onChange={(e) => handleMediaChange(e, "image")}
                 disabled={isCompressingMedia}
                 className="hidden"
               />
@@ -315,7 +366,7 @@ export const CreatePostCard: React.FC<CreatePostCardProps> = ({ onOpenAuth }) =>
               <input
                 type="file"
                 accept="video/*"
-                onChange={(e) => handleMediaChange(e, 'video')}
+                onChange={(e) => handleMediaChange(e, "video")}
                 disabled={isCompressingMedia}
                 className="hidden"
               />
@@ -329,10 +380,10 @@ export const CreatePostCard: React.FC<CreatePostCardProps> = ({ onOpenAuth }) =>
             <span
               className={`text-[11px] font-mono font-medium ${
                 isOverLimit
-                  ? 'text-rose-600 font-bold'
+                  ? "text-rose-600 font-bold"
                   : charCount > 240
-                  ? 'text-amber-500'
-                  : 'text-slate-400'
+                    ? "text-amber-500"
+                    : "text-slate-400"
               }`}
             >
               {maxChars - charCount}
@@ -340,7 +391,12 @@ export const CreatePostCard: React.FC<CreatePostCardProps> = ({ onOpenAuth }) =>
 
             <button
               type="submit"
-              disabled={isSubmitting || isCompressingMedia || isOverLimit || !content.trim()}
+              disabled={
+                isSubmitting ||
+                isCompressingMedia ||
+                isOverLimit ||
+                !content.trim()
+              }
               className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md text-xs font-semibold shadow-2xs disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5 shrink-0"
             >
               {isSubmitting ? (

@@ -4,6 +4,7 @@ import type { Post } from '../types';
 
 interface PostState {
   posts: Post[];
+  channels: string[];
   isLoading: boolean;
   isSubmitting: boolean;
   error: string | null;
@@ -12,6 +13,7 @@ interface PostState {
   feedTab: 'for-you' | 'following';
   activeHashtag: string | null;
 
+  fetchChannels: () => Promise<string[]>;
   setSelectedTopic: (topic: string) => void;
   setSortBy: (sort: 'latest' | 'top' | 'discussed') => void;
   setFeedTab: (feedTab: 'for-you' | 'following', userId?: string) => void;
@@ -20,7 +22,7 @@ interface PostState {
   createPost: (data: {
     title?: string;
     content: string;
-    topic?: string;
+    topic: string;
     ebook_id?: string;
     media?: File;
   }) => Promise<Post>;
@@ -42,6 +44,7 @@ interface PostState {
 
 export const usePostStore = create<PostState>((set, get) => ({
   posts: [],
+  channels: [],
   isLoading: false,
   isSubmitting: false,
   error: null,
@@ -49,6 +52,18 @@ export const usePostStore = create<PostState>((set, get) => ({
   sortBy: 'latest',
   feedTab: 'for-you',
   activeHashtag: null,
+
+  fetchChannels: async () => {
+    try {
+      const res = await api.get<{ channels: string[] }>('/posts/channels');
+      const channels = Array.isArray(res.data?.channels) ? res.data.channels : [];
+      set({ channels });
+      return channels;
+    } catch (err) {
+      console.warn('Failed to fetch channels from backend:', err);
+      return [];
+    }
+  },
 
   setSelectedTopic: (selectedTopic) => {
     set({ selectedTopic, activeHashtag: null });

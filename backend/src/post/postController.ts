@@ -7,6 +7,24 @@ import userModel from "../user/userModel";
 import cloudinary from "../config/cloudinary";
 import { AuthRequest } from "../middlewares/authenticate";
 
+export const COMMUNITY_CHANNELS = [
+  "General Discussion",
+  "Book Reviews & Ratings",
+  "Reading Notes & Highlights",
+  "Tech & Software Architecture",
+  "Science Fiction & Fantasy",
+  "Self-Improvement & Habits",
+] as const;
+
+/**
+ * Get the list of all valid community channels/topics
+ */
+const getChannels = async (req: Request, res: Response) => {
+  res.json({
+    channels: COMMUNITY_CHANNELS,
+  });
+};
+
 /**
  * Stream helper for Cloudinary buffer upload
  */
@@ -419,4 +437,4 @@ const updatePost = async (req: Request, res: Response, next: NextFunction) => {
   }
 };
 
-export { createPost, listPosts, toggleLikePost, addComment, sharePost, deletePost, updatePost };
+export { createPost, listPosts, getChannels, toggleLikePost, addComment, sharePost, deletePost, updatePost };

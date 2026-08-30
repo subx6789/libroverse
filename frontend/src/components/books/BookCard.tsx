@@ -24,16 +24,20 @@ export const BookCard: React.FC<BookCardProps> = ({ book, onRead, onEdit, onDele
     <div className="theme-card rounded-lg overflow-hidden flex flex-col justify-between group">
       
       {/* Cover Image Container */}
-      <div className="relative aspect-3/4 w-full overflow-hidden bg-slate-100 border-b border-slate-100">
-        <img
-          src={book.coverImage || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=800&q=80'}
-          alt={book.title}
-          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-102"
-          loading="lazy"
-          onError={(e) => {
-            (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=800&q=80';
-          }}
-        />
+      <div className="relative aspect-3/4 w-full overflow-hidden bg-slate-100 border-b border-slate-100 flex items-center justify-center">
+        {book.coverImage ? (
+          <img
+            src={book.coverImage}
+            alt={book.title}
+            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-102"
+            loading="lazy"
+          />
+        ) : (
+          <div className="w-full h-full bg-slate-100 flex flex-col items-center justify-center p-4 text-center text-slate-400">
+            <BookOpen className="w-10 h-10 text-indigo-400 mb-2" />
+            <span className="text-xs font-semibold line-clamp-2 text-slate-600">{book.title}</span>
+          </div>
+        )}
 
         {/* Solid Genre Badge */}
         <div className="absolute top-2.5 left-2.5">
