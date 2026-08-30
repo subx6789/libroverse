@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   BookOpen,
   Library,
@@ -13,8 +14,8 @@ import { usePostStore } from '../../store/usePostStore';
 import type { Book } from '../../types';
 
 interface ReaderHomePageProps {
-  onNavigateCatalog: () => void;
-  onNavigateCommunity: () => void;
+  onNavigateCatalog?: () => void;
+  onNavigateCommunity?: () => void;
   onReadBook: (book: Book) => void;
 }
 
@@ -23,9 +24,13 @@ export const ReaderHomePage: React.FC<ReaderHomePageProps> = ({
   onNavigateCommunity,
   onReadBook,
 }) => {
+  const navigate = useNavigate();
   const { user } = useAuthStore();
   const { books } = useBookStore();
   const { posts } = usePostStore();
+
+  const handleCatalog = onNavigateCatalog || (() => navigate('/library'));
+  const handleCommunity = onNavigateCommunity || (() => navigate('/community'));
 
   const recentBooks = books.slice(0, 4);
   const featuredBook = books[0];
@@ -51,7 +56,7 @@ export const ReaderHomePage: React.FC<ReaderHomePageProps> = ({
 
         <div className="flex flex-wrap items-center gap-2.5 pt-2">
           <button
-            onClick={onNavigateCatalog}
+            onClick={handleCatalog}
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs transition-colors cursor-pointer"
           >
             <Library className="w-4 h-4" />
@@ -59,7 +64,7 @@ export const ReaderHomePage: React.FC<ReaderHomePageProps> = ({
           </button>
 
           <button
-            onClick={onNavigateCommunity}
+            onClick={handleCommunity}
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs border border-slate-700 transition-colors cursor-pointer"
           >
             <Users className="w-4 h-4 text-sky-400" />
@@ -77,7 +82,7 @@ export const ReaderHomePage: React.FC<ReaderHomePageProps> = ({
               <span>Featured Publication</span>
             </h2>
             <button
-              onClick={onNavigateCatalog}
+              onClick={handleCatalog}
               className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 cursor-pointer"
             >
               <span>View All eBooks</span>
@@ -177,7 +182,7 @@ export const ReaderHomePage: React.FC<ReaderHomePageProps> = ({
               <span>Community Pulse</span>
             </h3>
             <button
-              onClick={onNavigateCommunity}
+              onClick={handleCommunity}
               className="text-xs font-semibold text-sky-600 hover:underline cursor-pointer"
             >
               Open Feed
@@ -190,7 +195,7 @@ export const ReaderHomePage: React.FC<ReaderHomePageProps> = ({
                 {recentPosts.map((p) => (
                   <div
                     key={p._id}
-                    onClick={onNavigateCommunity}
+                    onClick={handleCommunity}
                     className="py-2 first:pt-0 last:pb-0 cursor-pointer group"
                   >
                   <div className="flex items-center gap-2 mb-1">

@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   BookOpen,
   LayoutDashboard,
@@ -43,6 +44,8 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
   onEditBook,
   onReadBook,
 }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const { books, fetchBooks, isLoading, deleteBook } = useBookStore();
   const { categories, fetchCategories, createCategory, deleteCategory } = useCategoryStore();
   const { posts, fetchPosts } = usePostStore();
@@ -50,7 +53,21 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
   const { user, logout } = useAuthStore();
   const { showToast } = useToast();
 
-  const [activeTab, setActiveTab] = useState<'analytics' | 'catalog' | 'categories' | 'users'>('analytics');
+  // Derive activeTab from URL path (/admin/catalog, /admin/categories, /admin/users, or /admin / /admin/analytics)
+  const getTabFromPath = (): 'analytics' | 'catalog' | 'categories' | 'users' => {
+    const path = location.pathname;
+    if (path.includes('/catalog')) return 'catalog';
+    if (path.includes('/categories')) return 'categories';
+    if (path.includes('/users')) return 'users';
+    return 'analytics';
+  };
+
+  const activeTab = getTabFromPath();
+  const setActiveTab = (tab: 'analytics' | 'catalog' | 'categories' | 'users') => {
+    if (tab === 'analytics') navigate('/admin');
+    else navigate(`/admin/${tab}`);
+  };
+
   const [searchQuery, setSearchQuery] = useState('');
   const [userSearchQuery, setUserSearchQuery] = useState('');
   const [selectedGenreFilter, setSelectedGenreFilter] = useState('All');

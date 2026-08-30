@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   BookOpen,
   LogOut,
@@ -16,30 +17,21 @@ import { useBookStore } from '../../store/useBookStore';
 
 interface NavbarProps {
   onOpenAuth: (mode?: 'login' | 'register') => void;
-  onOpenAdmin: () => void;
-  // Navigation tabs for unauthenticated (guest)
-  guestTab?: 'landing' | 'about' | 'contact';
-  onSelectGuestTab?: (tab: 'landing' | 'about' | 'contact') => void;
-  // Navigation tabs for authenticated reader
-  readerTab?: 'home' | 'catalog' | 'community';
-  onSelectReaderTab?: (tab: 'home' | 'catalog' | 'community') => void;
   onOpenProfile?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
   onOpenAuth,
-  onOpenAdmin,
-  guestTab = 'landing',
-  onSelectGuestTab,
-  readerTab = 'home',
-  onSelectReaderTab,
   onOpenProfile,
 }) => {
   const { user, isAuthenticated, logout } = useAuthStore();
   const { searchQuery, setSearchQuery } = useBookStore();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const location = useLocation();
+  const navigate = useNavigate();
 
   const isAdmin = user?.role === 'admin';
+  const currentPath = location.pathname;
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-slate-200 bg-white/95 backdrop-blur-md transition-all">
@@ -49,10 +41,12 @@ export const Navbar: React.FC<NavbarProps> = ({
         <div className="flex items-center gap-6 shrink-0">
           <div
             onClick={() => {
-              if (isAuthenticated && onSelectReaderTab) {
-                onSelectReaderTab('home');
-              } else if (onSelectGuestTab) {
-                onSelectGuestTab('landing');
+              if (isAdmin) {
+                navigate('/admin');
+              } else if (isAuthenticated) {
+                navigate('/home');
+              } else {
+                navigate('/');
               }
             }}
             className="flex items-center gap-2.5 cursor-pointer group"
@@ -71,12 +65,12 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
 
           {/* Navigation for Authenticated Readers */}
-          {isAuthenticated && !isAdmin && onSelectReaderTab && (
+          {isAuthenticated && !isAdmin && (
             <nav className="hidden sm:flex items-center gap-1 bg-slate-100/80 p-0.5 rounded-lg border border-slate-200 text-xs font-semibold">
               <button
-                onClick={() => onSelectReaderTab('home')}
+                onClick={() => navigate('/home')}
                 className={`flex items-center gap-1.5 px-3 py-1 rounded-md transition-colors cursor-pointer ${
-                  readerTab === 'home'
+                  currentPath === '/home' || currentPath === '/'
                     ? 'bg-white text-indigo-600 shadow-2xs font-bold'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
@@ -86,9 +80,9 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
 
               <button
-                onClick={() => onSelectReaderTab('catalog')}
+                onClick={() => navigate('/library')}
                 className={`flex items-center gap-1.5 px-3 py-1 rounded-md transition-colors cursor-pointer ${
-                  readerTab === 'catalog'
+                  currentPath === '/library'
                     ? 'bg-white text-indigo-600 shadow-2xs font-bold'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
@@ -98,9 +92,9 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
 
               <button
-                onClick={() => onSelectReaderTab('community')}
+                onClick={() => navigate('/community')}
                 className={`flex items-center gap-1.5 px-3 py-1 rounded-md transition-colors cursor-pointer ${
-                  readerTab === 'community'
+                  currentPath === '/community'
                     ? 'bg-white text-indigo-600 shadow-2xs font-bold'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
@@ -112,12 +106,12 @@ export const Navbar: React.FC<NavbarProps> = ({
           )}
 
           {/* Navigation for Unauthenticated Guests */}
-          {!isAuthenticated && onSelectGuestTab && (
+          {!isAuthenticated && (
             <nav className="hidden sm:flex items-center gap-1 bg-slate-100/80 p-0.5 rounded-lg border border-slate-200 text-xs font-semibold">
               <button
-                onClick={() => onSelectGuestTab('landing')}
+                onClick={() => navigate('/')}
                 className={`px-3 py-1 rounded-md transition-colors cursor-pointer ${
-                  guestTab === 'landing'
+                  currentPath === '/'
                     ? 'bg-white text-indigo-600 shadow-2xs font-bold'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
@@ -126,9 +120,9 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
 
               <button
-                onClick={() => onSelectGuestTab('about')}
+                onClick={() => navigate('/about')}
                 className={`px-3 py-1 rounded-md transition-colors cursor-pointer ${
-                  guestTab === 'about'
+                  currentPath === '/about'
                     ? 'bg-white text-indigo-600 shadow-2xs font-bold'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
@@ -137,10 +131,10 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
 
               <button
-                onClick={() => onSelectGuestTab('contact')}
+                onClick={() => navigate('/contact')}
                 className={`px-3.5 py-1.5 rounded-lg transition-all cursor-pointer ${
-                  guestTab === 'contact'
-                    ? 'bg-white text-indigo-600 shadow-xs'
+                  currentPath === '/contact'
+                    ? 'bg-white text-indigo-600 shadow-xs font-bold'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
@@ -150,8 +144,8 @@ export const Navbar: React.FC<NavbarProps> = ({
           )}
         </div>
 
-        {/* Global Search Bar (Only when on Catalog) */}
-        {isAuthenticated && !isAdmin && readerTab === 'catalog' && (
+        {/* Global Search Bar (Only when on Library) */}
+        {currentPath === '/library' && (
           <div className="flex-1 max-w-md hidden md:block">
             <div className="relative group">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none transition-colors" />
@@ -178,23 +172,23 @@ export const Navbar: React.FC<NavbarProps> = ({
         <div className="flex items-center gap-2 sm:gap-3">
           
           {/* Mobile switcher for guests */}
-          {!isAuthenticated && onSelectGuestTab && (
+          {!isAuthenticated && (
             <div className="flex sm:hidden items-center gap-1 bg-slate-100 p-0.5 rounded-lg text-xs font-bold">
               <button
-                onClick={() => onSelectGuestTab('landing')}
-                className={`px-2 py-1 rounded ${guestTab === 'landing' ? 'bg-white text-indigo-600 shadow-xs' : 'text-slate-600'}`}
+                onClick={() => navigate('/')}
+                className={`px-2 py-1 rounded ${currentPath === '/' ? 'bg-white text-indigo-600 shadow-xs' : 'text-slate-600'}`}
               >
                 Home
               </button>
               <button
-                onClick={() => onSelectGuestTab('about')}
-                className={`px-2 py-1 rounded ${guestTab === 'about' ? 'bg-white text-indigo-600 shadow-xs' : 'text-slate-600'}`}
+                onClick={() => navigate('/about')}
+                className={`px-2 py-1 rounded ${currentPath === '/about' ? 'bg-white text-indigo-600 shadow-xs' : 'text-slate-600'}`}
               >
                 About
               </button>
               <button
-                onClick={() => onSelectGuestTab('contact')}
-                className={`px-2 py-1 rounded ${guestTab === 'contact' ? 'bg-white text-indigo-600 shadow-xs' : 'text-slate-600'}`}
+                onClick={() => navigate('/contact')}
+                className={`px-2 py-1 rounded ${currentPath === '/contact' ? 'bg-white text-indigo-600 shadow-xs' : 'text-slate-600'}`}
               >
                 Contact
               </button>
@@ -202,23 +196,23 @@ export const Navbar: React.FC<NavbarProps> = ({
           )}
 
           {/* Mobile switcher for readers */}
-          {isAuthenticated && !isAdmin && onSelectReaderTab && (
+          {isAuthenticated && !isAdmin && (
             <div className="flex sm:hidden items-center gap-1 bg-slate-100 p-0.5 rounded-lg text-xs font-bold">
               <button
-                onClick={() => onSelectReaderTab('home')}
-                className={`px-2 py-1 rounded ${readerTab === 'home' ? 'bg-white text-indigo-600 shadow-xs' : 'text-slate-600'}`}
+                onClick={() => navigate('/home')}
+                className={`px-2 py-1 rounded ${currentPath === '/home' || currentPath === '/' ? 'bg-white text-indigo-600 shadow-xs' : 'text-slate-600'}`}
               >
                 Home
               </button>
               <button
-                onClick={() => onSelectReaderTab('catalog')}
-                className={`px-2 py-1 rounded ${readerTab === 'catalog' ? 'bg-white text-indigo-600 shadow-xs' : 'text-slate-600'}`}
+                onClick={() => navigate('/library')}
+                className={`px-2 py-1 rounded ${currentPath === '/library' ? 'bg-white text-indigo-600 shadow-xs' : 'text-slate-600'}`}
               >
                 Books
               </button>
               <button
-                onClick={() => onSelectReaderTab('community')}
-                className={`px-2 py-1 rounded ${readerTab === 'community' ? 'bg-white text-indigo-600 shadow-xs' : 'text-slate-600'}`}
+                onClick={() => navigate('/community')}
+                className={`px-2 py-1 rounded ${currentPath === '/community' ? 'bg-white text-indigo-600 shadow-xs' : 'text-slate-600'}`}
               >
                 Feed
               </button>
@@ -265,7 +259,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     <button
                       onClick={() => {
                         setShowProfileMenu(false);
-                        onOpenAdmin();
+                        navigate('/admin');
                       }}
                       className="w-full text-left px-4 py-2 text-xs font-semibold text-indigo-600 hover:bg-indigo-50 flex items-center gap-2 cursor-pointer"
                     >

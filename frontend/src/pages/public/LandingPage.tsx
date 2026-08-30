@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   BookOpen,
   Sparkles,
@@ -10,14 +11,16 @@ import {
 
 interface LandingPageProps {
   onGetStarted: () => void;
-  onExploreAbout: () => void;
-  onExploreContact: () => void;
+  onExploreAbout?: () => void;
+  onExploreContact?: () => void;
 }
 
 export const LandingPage: React.FC<LandingPageProps> = ({
   onGetStarted,
   onExploreAbout,
 }) => {
+  const navigate = useNavigate();
+  const handleAbout = onExploreAbout || (() => navigate('/about'));
   return (
     <div className="space-y-16 py-8">
       
@@ -47,7 +50,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           </button>
 
           <button
-            onClick={onExploreAbout}
+            onClick={handleAbout}
             className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-semibold text-xs sm:text-sm shadow-xs transition-colors cursor-pointer"
           >
             <Compass className="w-4 h-4 text-slate-500" />
