@@ -12,6 +12,7 @@ export interface User {
   bio?: string;
   isBanned?: boolean;
   bannedReason?: string;
+  usernameChangedAt?: Date[];
   savedPosts?: (string | mongoose.Types.ObjectId)[];
   followers?: (string | mongoose.Types.ObjectId)[];
   following?: (string | mongoose.Types.ObjectId)[];

@@ -52,6 +52,10 @@ const userSchema = new mongoose.Schema<User>(
       type: String,
       default: "",
     },
+    usernameChangedAt: {
+      type: [Date],
+      default: [],
+    },
     savedPosts: [
       {
         type: mongoose.Schema.Types.ObjectId,

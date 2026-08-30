@@ -47,6 +47,28 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ user, isOpen
     message: '',
   });
 
+  // Calculate username change limits (max 2 times per 30-day period)
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const recentChanges = (user.usernameChangedAt || []).filter(
+    (d) => new Date(d) > thirtyDaysAgo
+  );
+  const changesRemaining = Math.max(0, 2 - recentChanges.length);
+  const isUsernameLocked = changesRemaining === 0;
+
+  // Keep form state in sync whenever user object updates or modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setName(user.name || '');
+      setUsername(user.username || '');
+      setBio(user.bio || '');
+      setAvatarFile(null);
+      setAvatarPreview(user.avatar || '');
+      setCoverFile(null);
+      setCoverPreview(user.coverImage || '');
+      setUsernameStatus({ checking: false, available: true, message: 'Your current username' });
+    }
+  }, [user, isOpen]);
+
   if (!isOpen) return null;
 
   // Real-time debounced username checker
@@ -59,6 +81,15 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ user, isOpen
 
     if (cleanUsername === user.username) {
       setUsernameStatus({ checking: false, available: true, message: 'Your current username' });
+      return;
+    }
+
+    if (isUsernameLocked) {
+      setUsernameStatus({
+        checking: false,
+        available: false,
+        message: 'Username change limit reached (2 changes / 30 days)',
+      });
       return;
     }
 
@@ -91,7 +122,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ user, isOpen
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [username, user.username, checkUsername]);
+  }, [username, user.username, checkUsername, isUsernameLocked]);
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -246,7 +277,16 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ user, isOpen
           {/* Unique Username */}
           <div>
             <div className="flex items-center justify-between mb-1">
-              <label className="block text-xs font-bold text-slate-700">Unique Username (@handle)</label>
+              <div className="flex items-center gap-2">
+                <label className="block text-xs font-bold text-slate-700">Unique Username (@handle)</label>
+                <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded border ${
+                  changesRemaining > 0 
+                    ? 'bg-slate-100 text-slate-600 border-slate-200' 
+                    : 'bg-rose-50 text-rose-600 border-rose-200'
+                }`}>
+                  {changesRemaining}/2 edits left this month
+                </span>
+              </div>
               {usernameStatus.checking ? (
                 <span className="text-[11px] text-indigo-600 flex items-center gap-1">
                   <Loader2 className="w-3 h-3 animate-spin" />
@@ -270,14 +310,19 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ user, isOpen
               <input
                 type="text"
                 required
+                disabled={isUsernameLocked}
                 value={username}
                 onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9-_]/g, ''))}
                 placeholder="username"
-                className="input-field pl-7! text-xs sm:text-sm font-mono"
+                className={`input-field pl-7! text-xs sm:text-sm font-mono ${
+                  isUsernameLocked ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : ''
+                }`}
               />
             </div>
             <p className="text-[11px] text-slate-400 mt-1">
-              This handle is used to mention you across reviews & discussion channels.
+              {isUsernameLocked
+                ? 'You have reached the limit of 2 username changes per 30 days.'
+                : 'This handle is used to mention you across discussions. You can change it up to 2 times a month.'}
             </p>
           </div>
 

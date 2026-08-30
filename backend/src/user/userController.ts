@@ -5,7 +5,7 @@ import { Readable } from "node:stream";
 import userModel from "./userModel";
 import postModel from "../post/postModel";
 import bcrypt from "bcrypt";
-import { sign } from "jsonwebtoken";
+import { sign, verify } from "jsonwebtoken";
 import { config } from "../config/config";
 import { User } from "./userTypes";
 import { AuthRequest } from "../middlewares/authenticate";
@@ -395,11 +395,14 @@ const getUserProfile = async (req: Request, res: Response, next: NextFunction) =
       user: {
         _id: user._id,
         name: user.name,
+        username: user.username || "",
         email: user.email,
         role: user.role,
-        avatar: user.avatar,
+        avatar: user.avatar || "",
+        coverImage: user.coverImage || "",
         bio: user.bio || "",
         isBanned: user.isBanned || false,
+        usernameChangedAt: user.usernameChangedAt || [],
         followers: user.followers || [],
         following: user.following || [],
         followersCount,
@@ -453,28 +456,35 @@ const getSuggestedUsers = async (req: Request, res: Response, next: NextFunction
 /**
  * Public: Search users by name, email, or bio
  */
+/**
+ * Public: Search users by name, username, email, or bio
+ */
 const searchUsers = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const query = req.query.q as string;
-    if (!query || !query.trim()) {
+    const rawQuery = (req.query.q as string) || "";
+    const cleanQuery = rawQuery.trim();
+    if (!cleanQuery) {
       return res.json([]);
     }
+
+    // Escape regex special characters safely
+    const escapedQuery = cleanQuery.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
     const users = await userModel
       .find({
         $or: [
-          { name: { $regex: query, $options: "i" } },
-          { email: { $regex: query, $options: "i" } },
-          { bio: { $regex: query, $options: "i" } },
+          { username: { $regex: escapedQuery, $options: "i" } },
+          { name: { $regex: escapedQuery, $options: "i" } },
+          { email: { $regex: escapedQuery, $options: "i" } },
+          { bio: { $regex: escapedQuery, $options: "i" } },
         ],
         isBanned: { $ne: true },
-        role: { $ne: "admin" },
       })
       .select("-password")
       .limit(10)
       .lean();
 
-    res.json(
+    return res.json(
       users.map((u) => ({
         ...u,
         followersCount: (u.followers || []).length,
@@ -482,7 +492,8 @@ const searchUsers = async (req: Request, res: Response, next: NextFunction) => {
       }))
     );
   } catch (err: any) {
-    return next(createHttpError(500, `Error searching readers: ${err?.message}`));
+    console.error("searchUsers error:", err);
+    return res.json([]);
   }
 };
 
@@ -491,9 +502,8 @@ const searchUsers = async (req: Request, res: Response, next: NextFunction) => {
  */
 const checkUsername = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const username = (req.query.username as string)?.toLowerCase().trim();
-    const _req = req as AuthRequest;
-    const currentUserId = _req.userId;
+    const rawUsername = (req.query.username as string) || "";
+    const username = rawUsername.toLowerCase().trim();
 
     if (!username || username.length < 3) {
       return res.json({ available: false, message: "Username must be at least 3 characters" });
@@ -503,14 +513,28 @@ const checkUsername = async (req: Request, res: Response, next: NextFunction) =>
       return res.json({ available: false, message: "Only letters, numbers, hyphens and underscores allowed" });
     }
 
-    const existingUser = await userModel.findOne({ username });
-    if (existingUser && existingUser._id.toString() !== currentUserId) {
+    // Optional auth extraction if token provided in header
+    let currentUserId: string | undefined = undefined;
+    const authHeader = req.header("Authorization");
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      try {
+        const tokenString = authHeader.substring(7);
+        const decoded = verify(tokenString, config.jwtSecret as string) as any;
+        currentUserId = decoded?.sub;
+      } catch {
+        // Continue unauthenticated if token invalid
+      }
+    }
+
+    const existingUser = await userModel.findOne({ username }).lean();
+    if (existingUser && (!currentUserId || existingUser._id.toString() !== currentUserId)) {
       return res.json({ available: false, message: "Username is already taken" });
     }
 
     return res.json({ available: true, message: "Username is available" });
   } catch (err: any) {
-    return next(createHttpError(500, `Error checking username: ${err?.message}`));
+    console.error("checkUsername error:", err);
+    return res.json({ available: false, message: "Could not verify username" });
   }
 };
 
@@ -539,6 +563,21 @@ const updateProfile = async (req: Request, res: Response, next: NextFunction) =>
     if (username && typeof username === "string") {
       const cleanUsername = username.toLowerCase().trim();
       if (cleanUsername !== user.username) {
+        // Enforce max 2 changes per 30 days
+        const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+        const recentChanges = (user.usernameChangedAt || []).filter(
+          (d) => new Date(d) > thirtyDaysAgo
+        );
+
+        if (recentChanges.length >= 2) {
+          return next(
+            createHttpError(
+              400,
+              "You can only change your username twice within 30 days. Please try again later."
+            )
+          );
+        }
+
         if (!/^[a-z0-9-_]{3,30}$/.test(cleanUsername)) {
           return next(createHttpError(400, "Username must be 3-30 characters (letters, numbers, -, _)"));
         }
@@ -546,7 +585,9 @@ const updateProfile = async (req: Request, res: Response, next: NextFunction) =>
         if (existing && existing._id.toString() !== userId) {
           return next(createHttpError(400, "Username is already taken"));
         }
+
         user.username = cleanUsername;
+        user.usernameChangedAt = [...(user.usernameChangedAt || []), new Date()];
       }
     }
 
@@ -594,6 +635,7 @@ const updateProfile = async (req: Request, res: Response, next: NextFunction) =>
       coverImage: user.coverImage || "",
       bio: user.bio || "",
       isBanned: user.isBanned || false,
+      usernameChangedAt: user.usernameChangedAt || [],
     });
   } catch (err: any) {
     return next(createHttpError(500, `Failed to update profile: ${err?.message}`));

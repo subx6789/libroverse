@@ -189,7 +189,15 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
       {/* Edit Profile Modal Dialog */}
       {editProfileOpen && (
         <EditProfileModal
-          user={user}
+          user={{
+            ...user,
+            username: user.username || currentUser?.username || '',
+            name: user.name || currentUser?.name || '',
+            bio: user.bio || currentUser?.bio || '',
+            avatar: user.avatar || currentUser?.avatar || '',
+            coverImage: user.coverImage || currentUser?.coverImage || '',
+            usernameChangedAt: user.usernameChangedAt || currentUser?.usernameChangedAt || [],
+          }}
           isOpen={editProfileOpen}
           onClose={() => setEditProfileOpen(false)}
         />

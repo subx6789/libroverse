@@ -45,13 +45,12 @@ const globalErrorHandler = (
     clientMessage = messages || "Validation error occurred.";
   }
 
-  // For 500 internal server errors, ensure no raw DB string, path, or query leaks
+  // For 500 internal server errors
   if (statusCode === 500) {
-    if (config.env === "production" || !err.expose) {
-      clientMessage = "An internal server error occurred. Please try again later.";
+    if (err.message && !err.message.includes("Mongo") && !err.message.includes("node_modules")) {
+      clientMessage = err.message;
     } else {
-      // In dev mode, provide clean high-level message without raw file paths
-      clientMessage = (err.message || "").replace(/\/[\w.-]+/g, "[path]") || "Internal Server Error";
+      clientMessage = "An internal server error occurred. Please try again later.";
     }
   }
 

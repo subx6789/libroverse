@@ -203,6 +203,24 @@ export const CreatePostCard: React.FC<CreatePostCardProps> = ({
   const maxChars = 280;
   const isOverLimit = charCount > maxChars;
 
+  if (user && user.role === "admin") {
+    return (
+      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-xs text-amber-800 flex items-center justify-between shadow-xs">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-md bg-amber-600 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs">
+            🛡️
+          </div>
+          <div>
+            <p className="font-bold text-slate-900">Administrator Moderation Mode</p>
+            <p className="text-slate-600 text-[11px]">
+              Administrator accounts oversee community content, discussions, and the eBook catalog. Publishing personal social feed posts is restricted for admins.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-white rounded-lg border border-slate-200 shadow-xs p-4 transition-all relative">
       <form onSubmit={handleSubmit} className="space-y-3">

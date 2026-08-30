@@ -37,12 +37,14 @@ interface AdminDashboardPageProps {
   onOpenUpload: () => void;
   onEditBook: (book: Book) => void;
   onReadBook: (book: Book) => void;
+  onOpenProfile?: () => void;
 }
 
 export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
   onOpenUpload,
   onEditBook,
   onReadBook,
+  onOpenProfile,
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -212,10 +214,10 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 flex flex-col md:flex-row">
+    <div className="min-h-screen md:h-screen bg-[#F8FAFC] text-slate-900 flex flex-col md:flex-row md:overflow-hidden">
       
-      {/* 🏛️ Dedicated Admin Sidebar */}
-      <aside className="w-full md:w-64 bg-white border-r border-slate-200 flex flex-col justify-between shrink-0">
+      {/* 🏛️ Dedicated Fixed Admin Sidebar */}
+      <aside className="w-full md:w-64 bg-white border-r border-slate-200 flex flex-col justify-between shrink-0 md:h-screen md:sticky md:top-0 z-30">
         
         <div>
           {/* Admin Header */}
@@ -287,16 +289,35 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
 
         {/* Sidebar Footer & User Card */}
         <div className="p-3 border-t border-slate-100 space-y-2">
-          <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200">
+          <div
+            onClick={onOpenProfile}
+            className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 hover:bg-indigo-50/50 hover:border-indigo-200 transition-all cursor-pointer group"
+            title="Click to view & edit admin profile"
+          >
             <div className="flex items-center justify-between">
-              <span className="text-[10px] font-bold text-slate-400 uppercase">Administrator</span>
-              <span className="text-[10px] font-bold text-indigo-700 bg-indigo-100 px-1 rounded">Active</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase group-hover:text-indigo-600 transition-colors">Administrator</span>
+              <span className="text-[10px] font-bold text-indigo-700 bg-indigo-100 px-1 rounded flex items-center gap-0.5">
+                <ShieldCheck className="w-2.5 h-2.5" />
+                <span>Active</span>
+              </span>
             </div>
-            <p className="text-xs font-bold text-slate-900 mt-1 truncate">{user?.name || 'Administrator'}</p>
-            <p className="text-[11px] text-slate-500 truncate">{user?.email || 'admin@libroverse.com'}</p>
+            <div className="flex items-center gap-2 mt-1.5">
+              <div className="w-6 h-6 rounded-md bg-indigo-600 text-white flex items-center justify-center font-bold text-[11px] shrink-0 overflow-hidden">
+                {user?.avatar ? (
+                  <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
+                ) : (
+                  user?.name ? user.name.charAt(0).toUpperCase() : 'A'
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-bold text-slate-900 truncate group-hover:text-indigo-600 transition-colors">{user?.name || 'Administrator'}</p>
+                <p className="text-[10px] text-slate-400 truncate">{user?.email || 'admin@libroverse.com'}</p>
+              </div>
+            </div>
             
             <button
-              onClick={() => {
+              onClick={(e) => {
+                e.stopPropagation();
                 logout();
                 navigate('/');
               }}

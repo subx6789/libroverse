@@ -19,6 +19,7 @@ const uploadStreamToCloudinary = (
     folder: string;
     resource_type: "image" | "raw" | "auto";
     format?: string;
+    flags?: string;
     filename_override?: string;
     quality?: string | number;
     fetch_format?: string;
@@ -139,7 +140,9 @@ const createBook = async (req: Request, res: Response, next: NextFunction) => {
 
     const pdfUploadPromise = uploadStreamToCloudinary(pdfFile.buffer, {
       folder: "book-pdfs",
-      resource_type: "raw",
+      resource_type: "image",
+      format: "pdf",
+      flags: "attachment",
       filename_override: pdfFile.originalname,
     });
 
@@ -261,7 +264,9 @@ const updateBook = async (req: Request, res: Response, next: NextFunction) => {
       }
       const uploadPdfRes = await uploadStreamToCloudinary(pdfFile.buffer, {
         folder: "book-pdfs",
-        resource_type: "raw",
+        resource_type: "image",
+        format: "pdf",
+        flags: "attachment",
         filename_override: pdfFile.originalname,
       });
       completeFileName = uploadPdfRes.secure_url || uploadPdfRes.url;

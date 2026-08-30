@@ -153,8 +153,15 @@ export function App() {
             onOpenUpload={handleOpenUpload}
             onEditBook={handleEditBook}
             onReadBook={(b) => setReadingBook(b)}
+            onOpenProfile={handleOpenMyProfile}
           />
         </Suspense>
+
+        <UserProfileModal
+          isOpen={profileModalOpen}
+          onClose={() => setProfileModalOpen(false)}
+          onOpenAuth={() => handleOpenAuth('login')}
+        />
 
         <BookUploadModal
           isOpen={uploadModalOpen}

@@ -16,6 +16,7 @@ export interface User {
   followingCount?: number;
   postsCount?: number;
   isFollowing?: boolean;
+  usernameChangedAt?: string[];
   createdAt?: string;
 }
 

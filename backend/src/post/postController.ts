@@ -69,10 +69,13 @@ const createPost = async (req: Request, res: Response, next: NextFunction) => {
   const _req = req as AuthRequest;
   const authorId = new mongoose.Types.ObjectId(_req.userId);
 
-  // Check if user is suspended
+  // Check if user is suspended or admin (admins manage catalog & moderation, not community posting)
   const user = await userModel.findById(authorId);
   if (!user || user.isBanned) {
     return next(createHttpError(403, "Suspended accounts cannot publish community posts"));
+  }
+  if (user.role === "admin") {
+    return next(createHttpError(403, "Administrator accounts are reserved for platform moderation and cannot publish community posts"));
   }
 
   const file = req.file;
