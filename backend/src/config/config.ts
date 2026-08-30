@@ -15,8 +15,12 @@ const _config = {
   rateLimitPublicMax: Number(process.env.RATE_LIMIT_PUBLIC_MAX) || 150, // Max public requests per 15 min
   rateLimitUserMax: Number(process.env.RATE_LIMIT_USER_MAX) || 300, // Max user actions per 15 min
 
-  // Cloudinary Free Tier Limits
+  // Cloudinary Free Tier Explicit File Size Limits
   maxPdfSizeMb: 10,
   maxImageSizeMb: 3,
+  maxAvatarSizeMb: 3,
+  maxCoverBannerSizeMb: 5,
+  maxPostImageSizeMb: 3,
+  maxPostVideoSizeMb: 8,
 };
 export const config = Object.freeze(_config);

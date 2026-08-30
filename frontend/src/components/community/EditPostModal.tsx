@@ -117,13 +117,24 @@ export const EditPostModal: React.FC<EditPostModalProps> = ({
   ) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      if (type === "image" && file.size > 3 * 1024 * 1024) {
-        showToast("Image attachment exceeds 3 MB limit (Cloudinary free tier)", "error");
+
+      // Mutually exclusive: cannot upload image and video at the same time
+      if ((mediaFile || mediaPreview) && mediaType !== type && mediaType !== "none") {
+        showToast(
+          `You cannot attach an image and video in the same post. Please remove your current ${mediaType} first.`,
+          "error"
+        );
         e.target.value = "";
         return;
       }
-      if (type === "video" && file.size > 10 * 1024 * 1024) {
-        showToast("Video attachment exceeds 10 MB limit", "error");
+
+      if (type === "image" && file.size > 3 * 1024 * 1024) {
+        showToast("Image attachment exceeds 3 MB limit", "error");
+        e.target.value = "";
+        return;
+      }
+      if (type === "video" && file.size > 8 * 1024 * 1024) {
+        showToast("Video attachment exceeds 8 MB limit", "error");
         e.target.value = "";
         return;
       }
@@ -135,8 +146,8 @@ export const EditPostModal: React.FC<EditPostModalProps> = ({
       try {
         if (type === "image") {
           const result = await compressImage(file, {
-            maxWidth: 1400,
-            maxHeight: 1400,
+            maxWidth: 1600,
+            maxHeight: 1600,
             quality: 0.85,
           });
           setMediaFile(result.file);

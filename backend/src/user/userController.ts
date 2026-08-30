@@ -612,8 +612,8 @@ const updateProfile = async (req: Request, res: Response, next: NextFunction) =>
     const coverFile = files?.coverImage?.[0];
 
     if (avatarFile) {
-      if (avatarFile.size > 5 * 1024 * 1024) {
-        return next(createHttpError(400, "Avatar must be under 5 MB"));
+      if (avatarFile.size > config.maxAvatarSizeMb * 1024 * 1024) {
+        return next(createHttpError(400, `Avatar must be ${config.maxAvatarSizeMb} MB or less`));
       }
 
       // Delete previous avatar from Cloudinary if replacing
@@ -639,8 +639,8 @@ const updateProfile = async (req: Request, res: Response, next: NextFunction) =>
     }
 
     if (coverFile) {
-      if (coverFile.size > 8 * 1024 * 1024) {
-        return next(createHttpError(400, "Cover image must be under 8 MB"));
+      if (coverFile.size > config.maxCoverBannerSizeMb * 1024 * 1024) {
+        return next(createHttpError(400, `Cover banner image must be ${config.maxCoverBannerSizeMb} MB or less`));
       }
 
       // Delete previous cover banner from Cloudinary if replacing

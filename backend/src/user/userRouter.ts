@@ -29,7 +29,7 @@ const userRouter = express.Router();
 const storage = multer.memoryStorage();
 const upload = multer({
   storage,
-  limits: { fileSize: config.maxImageSizeMb * 1024 * 1024 }, // 3 MB max
+  limits: { fileSize: config.maxCoverBannerSizeMb * 1024 * 1024 }, // 5 MB max
 });
 
 import {

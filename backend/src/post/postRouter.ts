@@ -19,7 +19,7 @@ const postRouter = express.Router();
 const storage = multer.memoryStorage();
 const upload = multer({
   storage,
-  limits: { fileSize: config.maxImageSizeMb * 1024 * 1024 }, // 3 MB in-memory gate
+  limits: { fileSize: config.maxPostVideoSizeMb * 1024 * 1024 }, // 8 MB max in-memory gate for video/image
 });
 
 import {

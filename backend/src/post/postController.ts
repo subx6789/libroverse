@@ -89,8 +89,8 @@ const createPost = async (req: Request, res: Response, next: NextFunction) => {
       const isVideo = file.mimetype.startsWith("video/");
 
       if (isImage) {
-        if (file.size > config.maxImageSizeMb * 1024 * 1024) {
-          return next(createHttpError(400, `Attached image exceeds ${config.maxImageSizeMb} MB limit`));
+        if (file.size > config.maxPostImageSizeMb * 1024 * 1024) {
+          return next(createHttpError(400, `Attached image exceeds ${config.maxPostImageSizeMb} MB limit`));
         }
 
         // Magic byte inspection
@@ -112,8 +112,8 @@ const createPost = async (req: Request, res: Response, next: NextFunction) => {
         });
         mediaUrl = uploadResult?.secure_url || uploadResult?.url;
       } else if (isVideo) {
-        if (file.size > 10 * 1024 * 1024) {
-          return next(createHttpError(400, "Attached video exceeds 10 MB limit"));
+        if (file.size > config.maxPostVideoSizeMb * 1024 * 1024) {
+          return next(createHttpError(400, `Attached video exceeds ${config.maxPostVideoSizeMb} MB limit`));
         }
         mediaType = "video";
         uploadResult = await uploadStreamToCloudinary(file.buffer, {
@@ -394,8 +394,8 @@ const updatePost = async (req: Request, res: Response, next: NextFunction) => {
       const isVideo = file.mimetype.startsWith("video/");
 
       if (isImage) {
-        if (file.size > config.maxImageSizeMb * 1024 * 1024) {
-          return next(createHttpError(400, `Attached image exceeds ${config.maxImageSizeMb} MB limit`));
+        if (file.size > config.maxPostImageSizeMb * 1024 * 1024) {
+          return next(createHttpError(400, `Attached image exceeds ${config.maxPostImageSizeMb} MB limit`));
         }
 
         // Magic byte inspection
@@ -435,8 +435,8 @@ const updatePost = async (req: Request, res: Response, next: NextFunction) => {
         post.media_url = uploadResult?.secure_url || uploadResult?.url;
         post.media_type = "image";
       } else if (isVideo) {
-        if (file.size > 10 * 1024 * 1024) {
-          return next(createHttpError(400, "Attached video exceeds 10 MB limit"));
+        if (file.size > config.maxPostVideoSizeMb * 1024 * 1024) {
+          return next(createHttpError(400, `Attached video exceeds ${config.maxPostVideoSizeMb} MB limit`));
         }
 
         // Delete old post media from Cloudinary if replacing

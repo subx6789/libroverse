@@ -15,6 +15,8 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { useToast } from '../ui/ToastContext';
 import type { User } from '../../types';
 
+import { compressImage } from '../../utils/mediaCompressor';
+
 interface EditProfileModalProps {
   user: User;
   isOpen: boolean;
@@ -35,6 +37,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ user, isOpen
   const [avatarPreview, setAvatarPreview] = useState<string>(user.avatar || '');
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [coverPreview, setCoverPreview] = useState<string>(user.coverImage || '');
+  const [isCompressingImages, setIsCompressingImages] = useState<boolean>(false);
 
   // Username validation state
   const [usernameStatus, setUsernameStatus] = useState<{
@@ -124,27 +127,57 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ user, isOpen
     return () => clearTimeout(timer);
   }, [username, user.username, checkUsername, isUsernameLocked]);
 
-  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      if (file.size > 5 * 1024 * 1024) {
-        showToast('Avatar image must be under 5 MB', 'error');
+      if (file.size > 3 * 1024 * 1024) {
+        showToast('Avatar image must be 3 MB or less', 'error');
+        e.target.value = '';
         return;
       }
-      setAvatarFile(file);
       setAvatarPreview(URL.createObjectURL(file));
+      setIsCompressingImages(true);
+      try {
+        const compressed = await compressImage(file, {
+          maxWidth: 600,
+          maxHeight: 600,
+          quality: 0.85,
+        });
+        setAvatarFile(compressed.file);
+        setAvatarPreview(URL.createObjectURL(compressed.file));
+      } catch (err) {
+        console.error('Avatar compression error:', err);
+        setAvatarFile(file);
+      } finally {
+        setIsCompressingImages(false);
+      }
     }
   };
 
-  const handleCoverChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCoverChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      if (file.size > 8 * 1024 * 1024) {
-        showToast('Cover banner image must be under 8 MB', 'error');
+      if (file.size > 5 * 1024 * 1024) {
+        showToast('Cover banner image must be 5 MB or less', 'error');
+        e.target.value = '';
         return;
       }
-      setCoverFile(file);
       setCoverPreview(URL.createObjectURL(file));
+      setIsCompressingImages(true);
+      try {
+        const compressed = await compressImage(file, {
+          maxWidth: 1600,
+          maxHeight: 600,
+          quality: 0.85,
+        });
+        setCoverFile(compressed.file);
+        setCoverPreview(URL.createObjectURL(compressed.file));
+      } catch (err) {
+        console.error('Cover banner compression error:', err);
+        setCoverFile(file);
+      } finally {
+        setIsCompressingImages(false);
+      }
     }
   };
 
