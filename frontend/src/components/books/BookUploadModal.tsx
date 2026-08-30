@@ -68,8 +68,8 @@ export const BookUploadModal: React.FC<BookUploadModalProps> = ({
   const handleCoverChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      if (file.size > 15 * 1024 * 1024) {
-        showToast('Cover image size exceeds 15 MB limit.', 'error');
+      if (file.size > 3 * 1024 * 1024) {
+        showToast('Cover image exceeds 3 MB limit (Cloudinary free tier).', 'error');
         e.target.value = '';
         setCoverFile(null);
         if (!bookToEdit) setCoverPreview('');
@@ -96,8 +96,8 @@ export const BookUploadModal: React.FC<BookUploadModalProps> = ({
   const handleBookFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      if (file.size > 25 * 1024 * 1024) {
-        showToast('Book document exceeds 25 MB limit.', 'error');
+      if (file.size > 10 * 1024 * 1024) {
+        showToast('Book PDF exceeds 10 MB limit (Cloudinary free tier).', 'error');
         e.target.value = '';
         return;
       }
@@ -145,7 +145,7 @@ export const BookUploadModal: React.FC<BookUploadModalProps> = ({
         showToast('eBook updated successfully!', 'success');
       } else {
         if (!coverFile) {
-          showToast('Please select a cover image (Max 2MB)', 'error');
+          showToast('Please select a cover image (Max 3MB)', 'error');
           return;
         }
         if (!bookFile) {

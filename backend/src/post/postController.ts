@@ -6,6 +6,7 @@ import postModel from "./postModel";
 import userModel from "../user/userModel";
 import cloudinary from "../config/cloudinary";
 import { AuthRequest } from "../middlewares/authenticate";
+import { config } from "../config/config";
 
 export const COMMUNITY_CHANNELS = [
   "General Discussion",
@@ -85,9 +86,19 @@ const createPost = async (req: Request, res: Response, next: NextFunction) => {
       const isVideo = file.mimetype.startsWith("video/");
 
       if (isImage) {
-        if (file.size > 15 * 1024 * 1024) {
-          return next(createHttpError(400, "Attached image exceeds 15 MB limit"));
+        if (file.size > config.maxImageSizeMb * 1024 * 1024) {
+          return next(createHttpError(400, `Attached image exceeds ${config.maxImageSizeMb} MB limit`));
         }
+
+        // Magic byte inspection
+        const isJpeg = file.buffer[0] === 0xff && file.buffer[1] === 0xd8 && file.buffer[2] === 0xff;
+        const isPng = file.buffer[0] === 0x89 && file.buffer[1] === 0x50 && file.buffer[2] === 0x4e && file.buffer[3] === 0x47;
+        const isWebp = file.buffer.toString("ascii", 0, 4) === "RIFF" && file.buffer.toString("ascii", 8, 12) === "WEBP";
+
+        if (!isJpeg && !isPng && !isWebp) {
+          return next(createHttpError(400, "Attached image file is invalid or corrupted"));
+        }
+
         mediaType = "image";
         uploadResult = await uploadStreamToCloudinary(file.buffer, {
           folder: "community-media",
@@ -98,8 +109,8 @@ const createPost = async (req: Request, res: Response, next: NextFunction) => {
         });
         mediaUrl = uploadResult?.secure_url || uploadResult?.url;
       } else if (isVideo) {
-        if (file.size > 50 * 1024 * 1024) {
-          return next(createHttpError(400, "Attached video exceeds 50 MB limit"));
+        if (file.size > 10 * 1024 * 1024) {
+          return next(createHttpError(400, "Attached video exceeds 10 MB limit"));
         }
         mediaType = "video";
         uploadResult = await uploadStreamToCloudinary(file.buffer, {
@@ -380,9 +391,19 @@ const updatePost = async (req: Request, res: Response, next: NextFunction) => {
       const isVideo = file.mimetype.startsWith("video/");
 
       if (isImage) {
-        if (file.size > 15 * 1024 * 1024) {
-          return next(createHttpError(400, "Attached image exceeds 15 MB limit"));
+        if (file.size > config.maxImageSizeMb * 1024 * 1024) {
+          return next(createHttpError(400, `Attached image exceeds ${config.maxImageSizeMb} MB limit`));
         }
+
+        // Magic byte inspection
+        const isJpeg = file.buffer[0] === 0xff && file.buffer[1] === 0xd8 && file.buffer[2] === 0xff;
+        const isPng = file.buffer[0] === 0x89 && file.buffer[1] === 0x50 && file.buffer[2] === 0x4e && file.buffer[3] === 0x47;
+        const isWebp = file.buffer.toString("ascii", 0, 4) === "RIFF" && file.buffer.toString("ascii", 8, 12) === "WEBP";
+
+        if (!isJpeg && !isPng && !isWebp) {
+          return next(createHttpError(400, "Attached image file is invalid or corrupted"));
+        }
+
         const uploadResult = await uploadStreamToCloudinary(file.buffer, {
           folder: "community-media",
           resource_type: "image",
@@ -393,8 +414,8 @@ const updatePost = async (req: Request, res: Response, next: NextFunction) => {
         post.media_url = uploadResult?.secure_url || uploadResult?.url;
         post.media_type = "image";
       } else if (isVideo) {
-        if (file.size > 50 * 1024 * 1024) {
-          return next(createHttpError(400, "Attached video exceeds 50 MB limit"));
+        if (file.size > 10 * 1024 * 1024) {
+          return next(createHttpError(400, "Attached video exceeds 10 MB limit"));
         }
         const uploadResult = await uploadStreamToCloudinary(file.buffer, {
           folder: "community-media",

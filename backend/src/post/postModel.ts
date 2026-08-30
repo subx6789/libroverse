@@ -120,4 +120,10 @@ const postSchema = new mongoose.Schema<Post>(
   { timestamps: true }
 );
 
+// High-performance compound indexes for social feed queries
+postSchema.index({ topic: 1, createdAt: -1 });
+postSchema.index({ author: 1, createdAt: -1 });
+postSchema.index({ createdAt: -1 });
+postSchema.index({ title: "text", content: "text" });
+
 export default mongoose.model<Post>("Post", postSchema);

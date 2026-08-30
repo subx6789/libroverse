@@ -76,4 +76,7 @@ const userSchema = new mongoose.Schema<User>(
   }
 );
 
+// High performance index for mention search & username lookup
+userSchema.index({ username: 1, name: 1 });
+
 export default mongoose.model<User>("User", userSchema);

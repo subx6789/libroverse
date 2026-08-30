@@ -50,4 +50,9 @@ const bookSchema = new mongoose.Schema<Book>(
   { timestamps: true }
 );
 
+// Search & Catalog Filter Indexes
+bookSchema.index({ genre: 1, createdAt: -1 });
+bookSchema.index({ createdAt: -1 });
+bookSchema.index({ title: "text", description: "text" });
+
 export default mongoose.model<Book>("Book", bookSchema);

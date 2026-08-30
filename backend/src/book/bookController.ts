@@ -7,6 +7,7 @@ import bookModel from "./bookModel";
 import userModel from "../user/userModel";
 import authorModel from "../author/authorModel";
 import { AuthRequest } from "../middlewares/authenticate";
+import { config } from "../config/config";
 
 /**
  * Enterprise Stream Upload Helper: Streams raw Buffer directly to Cloudinary
@@ -80,20 +81,20 @@ const createBook = async (req: Request, res: Response, next: NextFunction) => {
     return next(createHttpError(400, "Cover image content is invalid or corrupted (failed magic bytes validation)"));
   }
 
-  // Cover image must be <= 15 MB
-  if (coverFile.size > 15 * 1024 * 1024) {
-    return next(createHttpError(400, "Cover image size must be 15 MB or less"));
+  // Cover image must be <= 3 MB (Cloudinary free tier requirement)
+  if (coverFile.size > config.maxImageSizeMb * 1024 * 1024) {
+    return next(createHttpError(400, `Cover image size must be ${config.maxImageSizeMb} MB or less`));
   }
 
   // PDF mime & magic byte inspection (%PDF- = 0x25 0x50 0x44 0x46)
-  const isPdfHeader = coverFile.buffer.length >= 4 && pdfFile.buffer.toString("ascii", 0, 4) === "%PDF";
+  const isPdfHeader = pdfFile.buffer.length >= 4 && pdfFile.buffer.toString("ascii", 0, 4) === "%PDF";
   if (!isPdfHeader || (pdfFile.mimetype !== "application/pdf" && !pdfFile.originalname.toLowerCase().endsWith(".pdf"))) {
     return next(createHttpError(400, "Book document must be a valid PDF file"));
   }
 
-  // PDF file must be <= 25 MB
-  if (pdfFile.size > 25 * 1024 * 1024) {
-    return next(createHttpError(400, "Book PDF file size must be 25 MB or less"));
+  // PDF file must be <= 10 MB (Cloudinary free tier requirement)
+  if (pdfFile.size > config.maxPdfSizeMb * 1024 * 1024) {
+    return next(createHttpError(400, `Book PDF file size must be ${config.maxPdfSizeMb} MB or less`));
   }
 
   const coverSizeMb = bytesToMb(coverFile.size);
@@ -237,10 +238,10 @@ const updateBook = async (req: Request, res: Response, next: NextFunction) => {
     let coverSizeMb = book.pdf_size_mb || 0;
     let pdfSizeMb = book.cover_size_mb || 0;
 
-    // Validate size if uploading new cover image
+    // Validate size if uploading new cover image (3 MB max)
     if (coverFile) {
-      if (coverFile.size > 15 * 1024 * 1024) {
-        return next(createHttpError(400, "Cover image size must be 15 MB or less"));
+      if (coverFile.size > config.maxImageSizeMb * 1024 * 1024) {
+        return next(createHttpError(400, `Cover image size must be ${config.maxImageSizeMb} MB or less`));
       }
       const uploadRes = await uploadStreamToCloudinary(coverFile.buffer, {
         folder: "book-covers",
@@ -253,10 +254,10 @@ const updateBook = async (req: Request, res: Response, next: NextFunction) => {
       coverSizeMb = bytesToMb(coverFile.size);
     }
 
-    // Validate size if uploading new PDF file
+    // Validate size if uploading new PDF file (10 MB max)
     if (pdfFile) {
-      if (pdfFile.size > 25 * 1024 * 1024) {
-        return next(createHttpError(400, "Book PDF must be 25 MB or less"));
+      if (pdfFile.size > config.maxPdfSizeMb * 1024 * 1024) {
+        return next(createHttpError(400, `Book PDF must be ${config.maxPdfSizeMb} MB or less`));
       }
       const uploadPdfRes = await uploadStreamToCloudinary(pdfFile.buffer, {
         folder: "book-pdfs",

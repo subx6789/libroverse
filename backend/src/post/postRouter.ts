@@ -11,13 +11,15 @@ import {
   updatePost,
 } from "./postController";
 import authenticate from "../middlewares/authenticate";
+import { publicRateLimiter, userRateLimiter } from "../middlewares/rateLimiter";
+import { config } from "../config/config";
 
 const postRouter = express.Router();
 
 const storage = multer.memoryStorage();
 const upload = multer({
   storage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB in-memory gate
+  limits: { fileSize: config.maxImageSizeMb * 1024 * 1024 }, // 3 MB in-memory gate
 });
 
 import {
@@ -31,12 +33,16 @@ import {
   postIdParamSchema,
 } from "../schemas/validationSchemas";
 
-// Routes
-postRouter.get("/channels", getChannels);
-postRouter.get("/", listPosts);
+// Public post browsing routes
+postRouter.get("/channels", publicRateLimiter, getChannels);
+postRouter.get("/", publicRateLimiter, listPosts);
+postRouter.post("/:postId/share", publicRateLimiter, validateParams(postIdParamSchema), sharePost);
+
+// Authenticated user interaction routes
 postRouter.post(
   "/",
   authenticate,
+  userRateLimiter,
   upload.single("media"),
   validateBody(createPostSchema),
   createPost
@@ -44,20 +50,21 @@ postRouter.post(
 postRouter.patch(
   "/:postId",
   authenticate,
+  userRateLimiter,
   validateParams(postIdParamSchema),
   upload.single("media"),
   validateBody(updatePostSchema),
   updatePost
 );
-postRouter.post("/:postId/like", authenticate, validateParams(postIdParamSchema), toggleLikePost);
+postRouter.post("/:postId/like", authenticate, userRateLimiter, validateParams(postIdParamSchema), toggleLikePost);
 postRouter.post(
   "/:postId/comment",
   authenticate,
+  userRateLimiter,
   validateParams(postIdParamSchema),
   validateBody(addCommentSchema),
   addComment
 );
-postRouter.post("/:postId/share", validateParams(postIdParamSchema), sharePost);
-postRouter.delete("/:postId", authenticate, validateParams(postIdParamSchema), deletePost);
+postRouter.delete("/:postId", authenticate, userRateLimiter, validateParams(postIdParamSchema), deletePost);
 
 export default postRouter;

@@ -8,6 +8,8 @@ import {
 } from "./bookController";
 import multer from "multer";
 import authenticate from "../middlewares/authenticate";
+import { publicRateLimiter, userRateLimiter } from "../middlewares/rateLimiter";
+import { config } from "../config/config";
 
 const bookRouter = express.Router();
 
@@ -17,7 +19,7 @@ const bookRouter = express.Router();
 const storage = multer.memoryStorage();
 const upload = multer({
   storage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB in-memory gate
+  limits: { fileSize: config.maxPdfSizeMb * 1024 * 1024 }, // 10 MB in-memory gate
 });
 
 import {
@@ -30,10 +32,11 @@ import {
   bookIdParamSchema,
 } from "../schemas/validationSchemas";
 
-// routes
+// Authenticated create/update/delete routes
 bookRouter.post(
   "/",
   authenticate,
+  userRateLimiter,
   upload.fields([
     { name: "coverImage", maxCount: 1 },
     { name: "cover", maxCount: 1 },
@@ -47,6 +50,7 @@ bookRouter.post(
 bookRouter.put(
   "/:bookId",
   authenticate,
+  userRateLimiter,
   validateParams(bookIdParamSchema),
   upload.fields([
     { name: "coverImage", maxCount: 1 },
@@ -58,8 +62,9 @@ bookRouter.put(
   updateBook
 );
 
-bookRouter.get("/", listBooks);
-bookRouter.get("/:bookId", validateParams(bookIdParamSchema), getSingleBook);
-bookRouter.delete("/:bookId", authenticate, validateParams(bookIdParamSchema), deleteBook);
+// Public catalog viewing routes
+bookRouter.get("/", publicRateLimiter, listBooks);
+bookRouter.get("/:bookId", publicRateLimiter, validateParams(bookIdParamSchema), getSingleBook);
+bookRouter.delete("/:bookId", authenticate, userRateLimiter, validateParams(bookIdParamSchema), deleteBook);
 
 export default bookRouter;

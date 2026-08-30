@@ -117,6 +117,16 @@ export const EditPostModal: React.FC<EditPostModalProps> = ({
   ) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
+      if (type === "image" && file.size > 3 * 1024 * 1024) {
+        showToast("Image attachment exceeds 3 MB limit (Cloudinary free tier)", "error");
+        e.target.value = "";
+        return;
+      }
+      if (type === "video" && file.size > 10 * 1024 * 1024) {
+        showToast("Video attachment exceeds 10 MB limit", "error");
+        e.target.value = "";
+        return;
+      }
       setMediaType(type);
       setMediaPreview(URL.createObjectURL(file));
       setRemoveMedia(false);

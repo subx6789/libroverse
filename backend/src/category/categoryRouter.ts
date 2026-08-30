@@ -3,11 +3,12 @@ import { createCategory, listCategories, deleteCategory } from "./categoryContro
 import authenticate from "../middlewares/authenticate";
 import { validateBody, validateParams } from "../middlewares/validate";
 import { createCategorySchema, categoryIdParamSchema } from "../schemas/validationSchemas";
+import { publicRateLimiter, userRateLimiter } from "../middlewares/rateLimiter";
 
 const categoryRouter = express.Router();
 
-categoryRouter.get("/", listCategories);
-categoryRouter.post("/", authenticate, validateBody(createCategorySchema), createCategory);
-categoryRouter.delete("/:categoryId", authenticate, validateParams(categoryIdParamSchema), deleteCategory);
+categoryRouter.get("/", publicRateLimiter, listCategories);
+categoryRouter.post("/", authenticate, userRateLimiter, validateBody(createCategorySchema), createCategory);
+categoryRouter.delete("/:categoryId", authenticate, userRateLimiter, validateParams(categoryIdParamSchema), deleteCategory);
 
 export default categoryRouter;

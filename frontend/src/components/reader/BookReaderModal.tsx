@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   X,
   Download,
@@ -23,6 +24,7 @@ interface BookReaderModalProps {
 }
 
 export const BookReaderModal: React.FC<BookReaderModalProps> = ({ book, onClose }) => {
+  const navigate = useNavigate();
   const [fullscreen, setFullscreen] = useState(false);
   const [highlightText, setHighlightText] = useState('');
   const [highlightNote, setHighlightNote] = useState('');
@@ -211,13 +213,30 @@ export const BookReaderModal: React.FC<BookReaderModalProps> = ({ book, onClose 
                         {h.note && <p className="text-slate-600 text-[11px] mt-1 italic">Note: {h.note}</p>}
                         <div className="flex items-center justify-between mt-2 pt-1 border-t border-slate-200/60 text-[10px] text-slate-400">
                           <span>{new Date(h.createdAt).toLocaleDateString()}</span>
-                          <button
-                            onClick={() => removeHighlight(h.id)}
-                            className="text-rose-500 hover:text-rose-700 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-                            title="Delete Quote"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </button>
+                          <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              onClick={() => {
+                                const cleanBookTag = book.title.replace(/\s+/g, '-');
+                                const postText = `"${h.text}" — from #${cleanBookTag} #LibroVerse`;
+                                onClose();
+                                navigate('/community');
+                                showToast(`Quote copied! Head over to Community to share it.`, 'info');
+                                navigator.clipboard?.writeText(postText);
+                              }}
+                              className="flex items-center gap-1 text-indigo-600 hover:text-indigo-800 font-bold cursor-pointer"
+                              title="Share Quote to Community Feed"
+                            >
+                              <span>Share</span>
+                            </button>
+                            <span>•</span>
+                            <button
+                              onClick={() => removeHighlight(h.id)}
+                              className="text-rose-500 hover:text-rose-700 cursor-pointer"
+                              title="Delete Quote"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ))}

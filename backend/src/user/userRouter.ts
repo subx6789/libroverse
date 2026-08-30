@@ -17,12 +17,19 @@ import {
 } from "./userController";
 import authenticate from "../middlewares/authenticate";
 
+import {
+  authRateLimiter,
+  publicRateLimiter,
+  userRateLimiter,
+} from "../middlewares/rateLimiter";
+import { config } from "../config/config";
+
 const userRouter = express.Router();
 
 const storage = multer.memoryStorage();
 const upload = multer({
   storage,
-  limits: { fileSize: 10 * 1024 * 1024 },
+  limits: { fileSize: config.maxImageSizeMb * 1024 * 1024 }, // 3 MB max
 });
 
 import {
@@ -41,20 +48,23 @@ import {
   postIdParamSchema,
 } from "../schemas/validationSchemas";
 
-// Public routes
-userRouter.post("/register", validateBody(registerUserSchema), createUser);
-userRouter.post("/login", validateBody(loginUserSchema), loginUser);
-userRouter.get("/search", validateQuery(userSearchQuerySchema), searchUsers);
-userRouter.get("/check-username", validateQuery(checkUsernameQuerySchema), checkUsername);
-userRouter.get("/mentions", searchMentions);
-userRouter.get("/suggested", authenticate, getSuggestedUsers);
-userRouter.get("/profile/:userId", validateParams(userIdParamSchema), getUserProfile);
+// Public auth routes (Strict rate limiter)
+userRouter.post("/register", authRateLimiter, validateBody(registerUserSchema), createUser);
+userRouter.post("/login", authRateLimiter, validateBody(loginUserSchema), loginUser);
 
-// Authenticated user routes
-userRouter.get("/self", authenticate, getSelf);
+// Public browsing routes (Moderate rate limiter)
+userRouter.get("/search", publicRateLimiter, validateQuery(userSearchQuerySchema), searchUsers);
+userRouter.get("/check-username", publicRateLimiter, validateQuery(checkUsernameQuerySchema), checkUsername);
+userRouter.get("/mentions", publicRateLimiter, searchMentions);
+userRouter.get("/suggested", authenticate, userRateLimiter, getSuggestedUsers);
+userRouter.get("/profile/:userId", publicRateLimiter, validateParams(userIdParamSchema), getUserProfile);
+
+// Authenticated user routes (User action rate limiter)
+userRouter.get("/self", authenticate, userRateLimiter, getSelf);
 userRouter.patch(
   "/profile",
   authenticate,
+  userRateLimiter,
   upload.fields([
     { name: "avatar", maxCount: 1 },
     { name: "coverImage", maxCount: 1 },
@@ -62,8 +72,8 @@ userRouter.patch(
   validateBody(updateProfileSchema),
   updateProfile
 );
-userRouter.post("/saved/:postId", authenticate, validateParams(postIdParamSchema), toggleSavePost);
-userRouter.post("/:userId/follow", authenticate, validateParams(userIdParamSchema), toggleFollowUser);
+userRouter.post("/saved/:postId", authenticate, userRateLimiter, validateParams(postIdParamSchema), toggleSavePost);
+userRouter.post("/:userId/follow", authenticate, userRateLimiter, validateParams(userIdParamSchema), toggleFollowUser);
 
 // Admin user management routes
 userRouter.get("/", authenticate, listAllUsers);

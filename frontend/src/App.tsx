@@ -1,25 +1,34 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, lazy, Suspense } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { Navbar } from './components/layout/Navbar';
 import { LandingPage } from './pages/public/LandingPage';
-import { AboutUsPage } from './pages/public/AboutUsPage';
-import { ContactUsPage } from './pages/public/ContactUsPage';
 import { ReaderHomePage } from './pages/reader/ReaderHomePage';
 import { BookFilterBar } from './components/books/BookFilterBar';
 import { BookCard } from './components/books/BookCard';
 import { BookUploadModal } from './components/books/BookUploadModal';
-import { BookReaderModal } from './components/reader/BookReaderModal';
 import { CommunityFeedSection } from './components/community/CommunityFeedSection';
 import { AuthModal } from './components/auth/AuthModal';
 import { LegalModal, type LegalModalType } from './components/ui/LegalModal';
 import { UserProfileModal } from './components/community/UserProfileModal';
-import { AdminDashboardPage } from './pages/admin/AdminDashboardPage';
 import { useBookStore } from './store/useBookStore';
 import { useAuthStore } from './store/useAuthStore';
 import { useUserStore } from './store/useUserStore';
 import { useToast } from './components/ui/ToastContext';
 import { BookOpen, Library, RefreshCw, Loader2 } from 'lucide-react';
 import type { Book } from './types';
+
+// Code-split heavy route modules & reader (isolates pdf-lib)
+const AboutUsPage = lazy(() => import('./pages/public/AboutUsPage').then((m) => ({ default: m.AboutUsPage })));
+const ContactUsPage = lazy(() => import('./pages/public/ContactUsPage').then((m) => ({ default: m.ContactUsPage })));
+const AdminDashboardPage = lazy(() => import('./pages/admin/AdminDashboardPage').then((m) => ({ default: m.AdminDashboardPage })));
+const BookReaderModal = lazy(() => import('./components/reader/BookReaderModal').then((m) => ({ default: m.BookReaderModal })));
+
+const PageFallbackLoader = () => (
+  <div className="py-24 flex flex-col items-center justify-center gap-3">
+    <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
+    <p className="text-xs font-semibold text-slate-500">Loading experience...</p>
+  </div>
+);
 
 export function App() {
   const navigate = useNavigate();
@@ -139,11 +148,13 @@ export function App() {
 
     return (
       <div className="min-h-screen bg-[#F8FAFC]">
-        <AdminDashboardPage
-          onOpenUpload={handleOpenUpload}
-          onEditBook={handleEditBook}
-          onReadBook={(b) => setReadingBook(b)}
-        />
+        <Suspense fallback={<PageFallbackLoader />}>
+          <AdminDashboardPage
+            onOpenUpload={handleOpenUpload}
+            onEditBook={handleEditBook}
+            onReadBook={(b) => setReadingBook(b)}
+          />
+        </Suspense>
 
         <BookUploadModal
           isOpen={uploadModalOpen}
@@ -151,10 +162,14 @@ export function App() {
           bookToEdit={bookToEdit}
         />
 
-        <BookReaderModal
-          book={readingBook}
-          onClose={() => setReadingBook(null)}
-        />
+        {readingBook && (
+          <Suspense fallback={null}>
+            <BookReaderModal
+              book={readingBook}
+              onClose={() => setReadingBook(null)}
+            />
+          </Suspense>
+        )}
       </div>
     );
   }
@@ -173,32 +188,33 @@ export function App() {
 
       {/* Declarative Routes */}
       <div className="flex-1 flex flex-col">
-        <Routes>
-          {/* Public Routes */}
-          <Route
-            path="/"
-            element={
-              isAuthenticated && user?.role === 'user' ? (
-                <Navigate to="/home" replace />
-              ) : isAuthenticated && user?.role === 'admin' ? (
-                <Navigate to="/admin" replace />
-              ) : (
-                <LandingPage
-                  onGetStarted={() => handleOpenAuth('register')}
-                  onExploreAbout={() => navigate('/about')}
-                  onExploreContact={() => navigate('/contact')}
-                />
-              )
-            }
-          />
-          <Route
-            path="/about"
-            element={<AboutUsPage onGetStarted={() => handleOpenAuth('register')} />}
-          />
-          <Route
-            path="/contact"
-            element={<ContactUsPage />}
-          />
+        <Suspense fallback={<PageFallbackLoader />}>
+          <Routes>
+            {/* Public Routes */}
+            <Route
+              path="/"
+              element={
+                isAuthenticated && user?.role === 'user' ? (
+                  <Navigate to="/home" replace />
+                ) : isAuthenticated && user?.role === 'admin' ? (
+                  <Navigate to="/admin" replace />
+                ) : (
+                  <LandingPage
+                    onGetStarted={() => handleOpenAuth('register')}
+                    onExploreAbout={() => navigate('/about')}
+                    onExploreContact={() => navigate('/contact')}
+                  />
+                )
+              }
+            />
+            <Route
+              path="/about"
+              element={<AboutUsPage onGetStarted={() => handleOpenAuth('register')} />}
+            />
+            <Route
+              path="/contact"
+              element={<ContactUsPage />}
+            />
 
           {/* Reader Routes */}
           <Route
@@ -290,6 +306,7 @@ export function App() {
           {/* Catch-all fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        </Suspense>
       </div>
 
       {/* Footer */}
@@ -354,10 +371,14 @@ export function App() {
       </footer>
 
       {/* Shared Modals */}
-      <BookReaderModal
-        book={readingBook}
-        onClose={() => setReadingBook(null)}
-      />
+      {readingBook && (
+        <Suspense fallback={null}>
+          <BookReaderModal
+            book={readingBook}
+            onClose={() => setReadingBook(null)}
+          />
+        </Suspense>
+      )}
 
       <UserProfileModal
         isOpen={profileModalOpen}
