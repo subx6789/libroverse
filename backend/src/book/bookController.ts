@@ -267,6 +267,28 @@ const updateBook = async (req: Request, res: Response, next: NextFunction) => {
       pdfSizeMb = bytesToMb(pdfFile.size);
     }
 
+    // Resolve standalone Author records for multiple co-authors
+    let authorIds = book.authors || [];
+    if (req.body.authorNames !== undefined) {
+      const namesList = Array.isArray(req.body.authorNames)
+        ? req.body.authorNames
+        : typeof req.body.authorNames === "string"
+        ? req.body.authorNames.split(",").map((n: string) => n.trim()).filter(Boolean)
+        : [];
+
+      const newAuthorIds: mongoose.Types.ObjectId[] = [];
+      for (const name of namesList) {
+        let existingAuthor = await authorModel.findOne({
+          name: { $regex: new RegExp(`^${name}$`, "i") },
+        });
+        if (!existingAuthor) {
+          existingAuthor = await authorModel.create({ name });
+        }
+        newAuthorIds.push(new mongoose.Types.ObjectId(existingAuthor._id));
+      }
+      authorIds = newAuthorIds as any;
+    }
+
     const updatedBook = await bookModel
       .findOneAndUpdate(
         { _id: bookId },
@@ -274,6 +296,7 @@ const updateBook = async (req: Request, res: Response, next: NextFunction) => {
           title: title ? title.trim() : book.title,
           description: description ? description.trim() : book.description,
           genre: genre ? genre.trim() : book.genre,
+          authors: authorIds,
           coverImage: completeCoverImage,
           file: completeFileName,
           cover_size_mb: coverSizeMb,

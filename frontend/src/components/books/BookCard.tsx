@@ -13,7 +13,13 @@ interface BookCardProps {
 export const BookCard: React.FC<BookCardProps> = ({ book, onRead, onEdit, onDelete }) => {
   const { user } = useAuthStore();
 
-  const authorName = typeof book.author === 'object' && book.author ? book.author.name : 'Author';
+  const authorName =
+    book.authors && book.authors.length > 0
+      ? book.authors.map((a) => a.name).join(', ')
+      : typeof book.author === 'object' && book.author
+      ? book.author.name
+      : 'Author';
+
   const authorId = typeof book.author === 'object' && book.author ? book.author._id : String(book.author);
 
   const isOwner = user && authorId && user._id === authorId;

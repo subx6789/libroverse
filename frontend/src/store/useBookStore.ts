@@ -100,6 +100,7 @@ export const useBookStore = create<BookState>((set, get) => ({
       formData.append('title', payload.title);
       formData.append('description', payload.description);
       formData.append('genre', payload.genre);
+      if (payload.authorNames) formData.append('authorNames', payload.authorNames);
       formData.append('coverImage', payload.coverImage);
       formData.append('file', payload.file);
 
@@ -123,6 +124,7 @@ export const useBookStore = create<BookState>((set, get) => ({
       if (payload.title) formData.append('title', payload.title);
       if (payload.description) formData.append('description', payload.description);
       if (payload.genre) formData.append('genre', payload.genre);
+      if (payload.authorNames !== undefined) formData.append('authorNames', payload.authorNames);
       if (payload.coverImage) formData.append('coverImage', payload.coverImage);
       if (payload.file) formData.append('file', payload.file);
 

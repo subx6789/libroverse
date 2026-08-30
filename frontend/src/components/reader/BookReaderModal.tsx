@@ -33,7 +33,12 @@ export const BookReaderModal: React.FC<BookReaderModalProps> = ({ book, onClose 
 
   if (!book) return null;
 
-  const authorName = typeof book.author === 'object' && book.author ? book.author.name : 'Author';
+  const authorName =
+    book.authors && book.authors.length > 0
+      ? book.authors.map((a) => a.name).join(', ')
+      : typeof book.author === 'object' && book.author
+      ? book.author.name
+      : 'Author';
   const bookHighlights = highlights.filter((h) => h.bookId === book._id);
 
   const handleSaveHighlight = (e: React.FormEvent) => {

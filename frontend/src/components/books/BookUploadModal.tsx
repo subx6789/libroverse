@@ -22,7 +22,12 @@ export const BookUploadModal: React.FC<BookUploadModalProps> = ({
   const { categories, fetchCategories } = useCategoryStore();
   const { showToast } = useToast();
 
+  const initialAuthors = bookToEdit?.authors && bookToEdit.authors.length > 0
+    ? bookToEdit.authors.map((a) => a.name).join(', ')
+    : (typeof bookToEdit?.author === 'object' && bookToEdit?.author?.name ? bookToEdit.author.name : '');
+
   const [title, setTitle] = useState(bookToEdit?.title || '');
+  const [authorNames, setAuthorNames] = useState(initialAuthors);
   const [description, setDescription] = useState(bookToEdit?.description || '');
   const [genre, setGenre] = useState(bookToEdit?.genre || (categories[0]?.name || ''));
   const [coverFile, setCoverFile] = useState<File | null>(null);
@@ -45,6 +50,10 @@ export const BookUploadModal: React.FC<BookUploadModalProps> = ({
     setPrevOpen(isOpen);
     setPrevBook(bookToEdit);
     setTitle(bookToEdit?.title || '');
+    const currentAuthors = bookToEdit?.authors && bookToEdit.authors.length > 0
+      ? bookToEdit.authors.map((a) => a.name).join(', ')
+      : (typeof bookToEdit?.author === 'object' && bookToEdit?.author?.name ? bookToEdit.author.name : '');
+    setAuthorNames(currentAuthors);
     setDescription(bookToEdit?.description || '');
     setGenre(bookToEdit?.genre || (categories[0]?.name || ''));
     setCoverPreview(bookToEdit?.coverImage || '');
@@ -129,6 +138,7 @@ export const BookUploadModal: React.FC<BookUploadModalProps> = ({
           title,
           description,
           genre,
+          authorNames: authorNames.trim(),
           ...(coverFile ? { coverImage: coverFile } : {}),
           ...(bookFile ? { file: bookFile } : {}),
         });
@@ -147,6 +157,7 @@ export const BookUploadModal: React.FC<BookUploadModalProps> = ({
           title,
           description,
           genre,
+          authorNames: authorNames.trim(),
           coverImage: coverFile,
           file: bookFile,
         });
@@ -190,17 +201,32 @@ export const BookUploadModal: React.FC<BookUploadModalProps> = ({
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4 pt-4">
           
-          {/* Title */}
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">Book Title *</label>
-            <input
-              type="text"
-              required
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. System Design Interview Guide"
-              className="input-field text-xs sm:text-sm"
-            />
+          {/* Title & Author Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Book Title *</label>
+              <input
+                type="text"
+                required
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="e.g. System Design Guide"
+                className="input-field text-xs sm:text-sm"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Author(s) <span className="text-slate-400 font-normal">(comma-separated)</span>
+              </label>
+              <input
+                type="text"
+                value={authorNames}
+                onChange={(e) => setAuthorNames(e.target.value)}
+                placeholder="e.g. Martin Kleppmann, Subhajit"
+                className="input-field text-xs sm:text-sm"
+              />
+            </div>
           </div>
 
           {/* Dynamic Genre Dropdown */}

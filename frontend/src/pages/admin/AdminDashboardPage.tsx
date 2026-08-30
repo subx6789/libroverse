@@ -561,7 +561,13 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                             {b.genre}
                           </span>
                         </td>
-                        <td className="py-2.5 px-3">{typeof b.author === 'object' && b.author ? b.author.name : 'Author'}</td>
+                        <td className="py-2.5 px-3">
+                          {b.authors && b.authors.length > 0
+                            ? b.authors.map((a) => a.name).join(', ')
+                            : typeof b.author === 'object' && b.author
+                            ? b.author.name
+                            : 'Author'}
+                        </td>
                         <td className="py-2.5 px-3 text-slate-500">{b.pdf_size_mb ? `${b.pdf_size_mb} MB` : 'Cloud'}</td>
                         <td className="py-2.5 px-3 text-slate-400">{b.createdAt ? new Date(b.createdAt).toLocaleDateString() : 'Recent'}</td>
                         <td className="py-2.5 px-3 text-right">
@@ -634,7 +640,12 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                     </thead>
                     <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
                       {filteredBooks.map((b) => {
-                        const authorName = typeof b.author === 'object' && b.author ? b.author.name : 'Author';
+                        const authorName =
+                          b.authors && b.authors.length > 0
+                            ? b.authors.map((a) => a.name).join(', ')
+                            : typeof b.author === 'object' && b.author
+                            ? b.author.name
+                            : 'Author';
                         return (
                           <tr key={b._id} className="hover:bg-slate-50/80 transition-colors">
                             <td className="py-3 px-4 font-bold text-slate-900 flex items-center gap-3">
