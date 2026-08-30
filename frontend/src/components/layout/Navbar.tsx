@@ -272,6 +272,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     onClick={() => {
                       setShowProfileMenu(false);
                       logout();
+                      navigate('/');
                     }}
                     className="w-full text-left px-4 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 flex items-center gap-2 cursor-pointer border-t border-slate-100 mt-1"
                   >

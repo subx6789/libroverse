@@ -296,7 +296,10 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
             <p className="text-[11px] text-slate-500 truncate">{user?.email || 'admin@libroverse.com'}</p>
             
             <button
-              onClick={() => logout()}
+              onClick={() => {
+                logout();
+                navigate('/');
+              }}
               className="mt-2 w-full flex items-center justify-center gap-1.5 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50 rounded transition-colors cursor-pointer"
             >
               <LogOut className="w-3.5 h-3.5" />
