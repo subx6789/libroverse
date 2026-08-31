@@ -15,6 +15,56 @@ interface ExplainRequestBody {
   mode?: ExplainMode;
 }
 
+// In-Memory Passage Cache (24-Hour TTL)
+// Avoids duplicate LLM API calls when multiple readers query the same passage or book excerpt
+interface CacheEntry {
+  data: any;
+  expiresAt: number;
+}
+
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 Hours
+const MAX_CACHE_ENTRIES = 200; // Memory-safe upper bound
+const aiMemoryCache = new Map<string, CacheEntry>();
+
+/**
+ * Generate clean deterministic cache key for passage queries
+ */
+const getCacheKey = (prefix: string, identifier: string): string => {
+  const normalized = identifier.toLowerCase().replace(/\s+/g, " ").trim();
+  return `${prefix}:${normalized}`;
+};
+
+/**
+ * Helper to fetch from in-memory cache
+ */
+const getFromCache = (key: string): any | null => {
+  const entry = aiMemoryCache.get(key);
+  if (!entry) return null;
+
+  if (Date.now() > entry.expiresAt) {
+    aiMemoryCache.delete(key);
+    return null;
+  }
+
+  return entry.data;
+};
+
+/**
+ * Helper to set in-memory cache with eviction to prevent memory growth
+ */
+const setInCache = (key: string, data: any) => {
+  if (aiMemoryCache.size >= MAX_CACHE_ENTRIES) {
+    // Evict oldest entry (first key in map)
+    const oldestKey = aiMemoryCache.keys().next().value;
+    if (oldestKey) aiMemoryCache.delete(oldestKey);
+  }
+
+  aiMemoryCache.set(key, {
+    data,
+    expiresAt: Date.now() + CACHE_TTL_MS,
+  });
+};
+
 /**
  * Intelligent fallback generator when HF token is missing or API limit is reached.
  * Ensures the app and interview demonstrations never crash even without active internet/tokens.
@@ -40,14 +90,24 @@ export const explainPassage = async (
   try {
     const { passage, bookTitle = "this book", author = "the author", mode = "explain" } = req.body;
 
-    if (!passage || typeof passage !== "string" || passage.trim().length === 0) {
-      return next(createHttpError(400, "A valid passage or text snippet is required."));
+    if (!passage || typeof passage !== "string" || passage.trim().length < 10) {
+      return next(createHttpError(400, "Please provide a meaningful passage (at least 10 characters)."));
     }
 
     if (passage.length > 4000) {
       return next(
         createHttpError(400, "Passage is too long. Please select a passage under 4000 characters.")
       );
+    }
+
+    // Check In-Memory Cache first (Fast sub-1ms return, 0 API consumption)
+    const cacheKey = getCacheKey("explain", `${bookTitle}:${passage}`);
+    const cachedResponse = getFromCache(cacheKey);
+    if (cachedResponse) {
+      return res.status(200).json({
+        ...cachedResponse,
+        cached: true,
+      });
     }
 
     const systemInstruction =
@@ -80,11 +140,14 @@ export const explainPassage = async (
           explanation = generateLocalFallbackExplanation(passage, bookTitle, mode);
         }
 
-        return res.status(200).json({
+        const payload = {
           success: true,
           mode,
           explanation,
-        });
+        };
+
+        setInCache(cacheKey, payload);
+        return res.status(200).json(payload);
       } catch (hfError: any) {
         console.warn("AI Inference fallback:", hfError?.message || hfError);
         const fallbackText = generateLocalFallbackExplanation(passage, bookTitle, mode);
@@ -120,6 +183,16 @@ export const generatePostHooks = async (
 ) => {
   try {
     const { topic = "General Discussion", bookTitle, draftText = "" } = req.body;
+
+    // Check In-Memory Cache for identical hook generation parameters
+    const hookCacheKey = getCacheKey("hooks", `${topic}:${bookTitle || "all"}:${draftText.slice(0, 50)}`);
+    const cachedHooks = getFromCache(hookCacheKey);
+    if (cachedHooks) {
+      return res.status(200).json({
+        ...cachedHooks,
+        cached: true,
+      });
+    }
 
     const fallbackHooks = [
       `🔥 Hot Take: What's one opinion about ${bookTitle ? `"${bookTitle}"` : "recent books"} that will have everyone in #${topic.replace(/\s+/g, "")} debating?`,

@@ -72,8 +72,8 @@ export const BookReaderModal: React.FC<BookReaderModalProps> = ({
 
   const handleAiExplain = async (overrideText?: string) => {
     const textToAnalyze = (overrideText || passageInput).trim();
-    if (!textToAnalyze) {
-      showToast("Please paste or type a passage to understand.", "info");
+    if (!textToAnalyze || textToAnalyze.length < 10) {
+      showToast("Please enter at least 10 characters from the passage to analyze.", "info");
       return;
     }
 
