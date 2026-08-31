@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   X,
   Download,
@@ -16,10 +16,10 @@ import {
   Check,
   Share2,
   HelpCircle,
-} from 'lucide-react';
-import type { Book } from '../../types';
-import { useToast } from '../ui/ToastContext';
-import { explainPassageAPI } from '../../services/aiService';
+} from "lucide-react";
+import type { Book } from "../../types";
+import { useToast } from "../ui/ToastContext";
+import { explainPassageAPI } from "../../services/aiService";
 
 interface BookReaderModalProps {
   book: Book | null;
@@ -27,16 +27,19 @@ interface BookReaderModalProps {
 }
 
 const LOADING_STATUSES = [
-  'Reading passage...',
-  'Analyzing literary context...',
-  'Synthesizing key insights...',
-  'Cooking explanation...',
+  "Reading passage...",
+  "Analyzing literary context...",
+  "Synthesizing key insights...",
+  "Cooking explanation...",
 ];
 
-export const BookReaderModal: React.FC<BookReaderModalProps> = ({ book, onClose }) => {
+export const BookReaderModal: React.FC<BookReaderModalProps> = ({
+  book,
+  onClose,
+}) => {
   const navigate = useNavigate();
   const [fullscreen, setFullscreen] = useState(false);
-  const [passageInput, setPassageInput] = useState('');
+  const [passageInput, setPassageInput] = useState("");
 
   // AI State
   const [aiLoading, setAiLoading] = useState(false);
@@ -62,15 +65,15 @@ export const BookReaderModal: React.FC<BookReaderModalProps> = ({ book, onClose 
 
   const authorName =
     book.authors && book.authors.length > 0
-      ? book.authors.map((a) => a.name).join(', ')
-      : typeof book.author === 'object' && book.author
-      ? book.author.name
-      : 'Author';
+      ? book.authors.map((a) => a.name).join(", ")
+      : typeof book.author === "object" && book.author
+        ? book.author.name
+        : "Author";
 
   const handleAiExplain = async (overrideText?: string) => {
     const textToAnalyze = (overrideText || passageInput).trim();
     if (!textToAnalyze) {
-      showToast('Please paste or type a passage to understand.', 'info');
+      showToast("Please paste or type a passage to understand.", "info");
       return;
     }
 
@@ -81,14 +84,15 @@ export const BookReaderModal: React.FC<BookReaderModalProps> = ({ book, onClose 
         passage: textToAnalyze,
         bookTitle: book.title,
         author: authorName,
-        mode: 'explain',
+        mode: "explain",
       });
 
       setAiExplanation(res.explanation);
     } catch (err: any) {
       showToast(
-        err.response?.data?.message || 'Failed to explain passage. Please try again.',
-        'error'
+        err.response?.data?.message ||
+          "Failed to explain passage. Please try again.",
+        "error",
       );
     } finally {
       setAiLoading(false);
@@ -99,29 +103,31 @@ export const BookReaderModal: React.FC<BookReaderModalProps> = ({ book, onClose 
     if (!aiExplanation) return;
     navigator.clipboard?.writeText(aiExplanation);
     setCopiedAiText(true);
-    showToast('Explanation copied to clipboard!', 'info');
+    showToast("Explanation copied to clipboard!", "info");
     setTimeout(() => setCopiedAiText(false), 2000);
   };
 
   const handleShareToCommunity = () => {
-    const cleanBookTag = book.title.replace(/\s+/g, '-');
-    const snippet = passageInput ? `"${passageInput.slice(0, 100)}..." ` : '';
+    const cleanBookTag = book.title.replace(/\s+/g, "-");
+    const snippet = passageInput ? `"${passageInput.slice(0, 100)}..." ` : "";
     const postText = `${snippet}\n\n💡 AI Breakdown: ${aiExplanation?.slice(0, 160)}...\n\n— from #${cleanBookTag} #LibroVerse`;
-    
+
     navigator.clipboard?.writeText(postText);
     onClose();
-    navigate('/community');
-    showToast('Insights copied! Head over to the community feed to share.', 'info');
+    navigate("/community");
+    showToast(
+      "Insights copied! Head over to the community feed to share.",
+      "info",
+    );
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in">
       <div
         className={`relative w-full bg-white rounded-2xl border border-slate-200 shadow-2xl flex flex-col overflow-hidden transition-all duration-200 ${
-          fullscreen ? 'h-[98vh] max-w-[98vw]' : 'h-[88vh] max-w-6xl'
+          fullscreen ? "h-[98vh] max-w-[98vw]" : "h-[88vh] max-w-6xl"
         }`}
       >
-        
         {/* Reader Top Header */}
         <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-200 bg-slate-50/80">
           <div className="flex items-center gap-3 overflow-hidden">
@@ -129,9 +135,13 @@ export const BookReaderModal: React.FC<BookReaderModalProps> = ({ book, onClose 
               <BookOpen className="w-4 h-4" />
             </div>
             <div className="overflow-hidden">
-              <h2 className="text-sm sm:text-base font-bold text-slate-900 truncate">{book.title}</h2>
+              <h2 className="text-sm sm:text-base font-bold text-slate-900 truncate">
+                {book.title}
+              </h2>
               <div className="flex items-center gap-2 text-xs text-slate-500">
-                <span className="font-semibold text-slate-700">{authorName}</span>
+                <span className="font-semibold text-slate-700">
+                  {authorName}
+                </span>
                 <span>•</span>
                 <span className="px-2 py-0.5 rounded-full bg-slate-200/80 text-slate-700 text-[10px] font-bold">
                   {book.genre}
@@ -157,9 +167,13 @@ export const BookReaderModal: React.FC<BookReaderModalProps> = ({ book, onClose 
             <button
               onClick={() => setFullscreen(!fullscreen)}
               className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors hidden sm:inline-flex cursor-pointer"
-              title={fullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+              title={fullscreen ? "Exit Fullscreen" : "Fullscreen"}
             >
-              {fullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+              {fullscreen ? (
+                <Minimize2 className="w-4 h-4" />
+              ) : (
+                <Maximize2 className="w-4 h-4" />
+              )}
             </button>
 
             <button
@@ -174,10 +188,9 @@ export const BookReaderModal: React.FC<BookReaderModalProps> = ({ book, onClose 
 
         {/* Reader Workspace */}
         <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
-          
           {/* Main Embedded Document Viewer */}
           <div className="flex-1 bg-slate-100 relative flex items-center justify-center overflow-hidden border-b md:border-b-0 md:border-r border-slate-200">
-            {book.file && !book.file.includes('undefined') ? (
+            {book.file && !book.file.includes("undefined") ? (
               <object
                 data={`${book.file}#toolbar=1&navpanes=0`}
                 type="application/pdf"
@@ -192,9 +205,12 @@ export const BookReaderModal: React.FC<BookReaderModalProps> = ({ book, onClose 
             ) : (
               <div className="text-center p-8 space-y-3">
                 <BookOpen className="w-12 h-12 text-slate-400 mx-auto" />
-                <p className="text-sm font-bold text-slate-800">eBook document could not be loaded.</p>
+                <p className="text-sm font-bold text-slate-800">
+                  eBook document could not be loaded.
+                </p>
                 <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                  The document file is unavailable. Please edit or re-upload the publication to view the reader.
+                  The document file is unavailable. Please edit or re-upload the
+                  publication to view the reader.
                 </p>
               </div>
             )}
@@ -203,7 +219,6 @@ export const BookReaderModal: React.FC<BookReaderModalProps> = ({ book, onClose 
           {/* Clean AI Reading Companion Sidebar */}
           <div className="w-full md:w-96 bg-white p-5 overflow-y-auto space-y-5 flex flex-col justify-between shrink-0 border-l border-slate-100">
             <div className="space-y-4">
-              
               {/* Sidebar Header */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -211,8 +226,12 @@ export const BookReaderModal: React.FC<BookReaderModalProps> = ({ book, onClose 
                     <Sparkles className="w-4 h-4" />
                   </div>
                   <div>
-                    <h3 className="text-xs font-bold text-slate-900">AI Reading Companion</h3>
-                    <p className="text-[10px] text-slate-400">Contextual breakdown & passage summarizer</p>
+                    <h3 className="text-xs font-bold text-slate-900">
+                      AI Reading Companion
+                    </h3>
+                    <p className="text-[10px] text-slate-400">
+                      Contextual breakdown & passage summarizer
+                    </p>
                   </div>
                 </div>
               </div>
@@ -228,14 +247,14 @@ export const BookReaderModal: React.FC<BookReaderModalProps> = ({ book, onClose 
                   value={passageInput}
                   onChange={(e) => setPassageInput(e.target.value)}
                   placeholder="Paste any quote, sentence, or complex paragraph from the book here..."
-                  className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all resize-none"
+                  className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 transition-all resize-none"
                 />
 
                 <button
                   type="button"
                   disabled={aiLoading || !passageInput.trim()}
                   onClick={() => handleAiExplain()}
-                  className="w-full py-2.5 bg-linear-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition-all shadow-xs"
+                  className="w-full py-2.5 bg-linear-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 disabled:opacity-40 disabled:pointer-events-none cursor-pointer text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-xs"
                 >
                   {aiLoading ? (
                     <>
@@ -262,7 +281,9 @@ export const BookReaderModal: React.FC<BookReaderModalProps> = ({ book, onClose 
                     <p className="text-xs font-bold text-indigo-900 transition-all duration-300">
                       {LOADING_STATUSES[loadingStepIndex]}
                     </p>
-                    <p className="text-[10px] text-indigo-500">Unpacking narrative & concepts for you</p>
+                    <p className="text-[10px] text-indigo-500">
+                      Unpacking narrative & concepts for you
+                    </p>
                   </div>
                 </div>
               )}
@@ -309,9 +330,12 @@ export const BookReaderModal: React.FC<BookReaderModalProps> = ({ book, onClose 
               {!aiLoading && !aiExplanation && (
                 <div className="p-4 rounded-2xl border border-dashed border-slate-200 text-center space-y-2">
                   <HelpCircle className="w-6 h-6 text-slate-300 mx-auto" />
-                  <p className="text-xs font-semibold text-slate-600">Need help understanding?</p>
+                  <p className="text-xs font-semibold text-slate-600">
+                    Need help understanding?
+                  </p>
                   <p className="text-[11px] text-slate-400 leading-relaxed">
-                    Paste any tricky terminology, dialogue, or complex paragraph from the left reader to get an instant breakdown.
+                    Paste any tricky terminology, dialogue, or complex paragraph
+                    from the left reader to get an instant breakdown.
                   </p>
                 </div>
               )}
@@ -328,18 +352,22 @@ export const BookReaderModal: React.FC<BookReaderModalProps> = ({ book, onClose 
                   <span className="flex items-center gap-1.5 font-medium">
                     <UserIcon className="w-3.5 h-3.5 text-indigo-600" /> Author
                   </span>
-                  <span className="font-bold text-slate-800 truncate max-w-35">{authorName}</span>
+                  <span className="font-bold text-slate-800 truncate max-w-35">
+                    {authorName}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="flex items-center gap-1.5 font-medium">
-                    <Calendar className="w-3.5 h-3.5 text-indigo-600" /> Uploaded
+                    <Calendar className="w-3.5 h-3.5 text-indigo-600" />{" "}
+                    Uploaded
                   </span>
                   <span className="font-semibold text-slate-700">
-                    {book.createdAt ? new Date(book.createdAt).toLocaleDateString() : 'Recent'}
+                    {book.createdAt
+                      ? new Date(book.createdAt).toLocaleDateString()
+                      : "Recent"}
                   </span>
                 </div>
               </div>
-
             </div>
 
             {/* Direct Open Full Tab */}
@@ -354,11 +382,8 @@ export const BookReaderModal: React.FC<BookReaderModalProps> = ({ book, onClose 
                 <span>Open PDF in Full Tab</span>
               </a>
             )}
-
           </div>
-
         </div>
-
       </div>
     </div>
   );
