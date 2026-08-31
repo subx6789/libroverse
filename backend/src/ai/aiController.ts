@@ -15,16 +15,7 @@ interface ExplainRequestBody {
   mode?: ExplainMode;
 }
 
-// In-Memory Passage Cache (24-Hour TTL)
-// Avoids duplicate LLM API calls when multiple readers query the same passage or book excerpt
-interface CacheEntry {
-  data: any;
-  expiresAt: number;
-}
-
-const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 Hours
-const MAX_CACHE_ENTRIES = 200; // Memory-safe upper bound
-const aiMemoryCache = new Map<string, CacheEntry>();
+import { aiLRUCache } from "./lruCache";
 
 /**
  * Generate clean deterministic cache key for passage queries
@@ -35,34 +26,49 @@ const getCacheKey = (prefix: string, identifier: string): string => {
 };
 
 /**
- * Helper to fetch from in-memory cache
+ * Rule-Based Quality & Anti-Prank Guardrail
+ * Intercepts gibberish, single words, repetitive keystrokes, or low-signal text
+ * before consuming third-party LLM API tokens.
  */
-const getFromCache = (key: string): any | null => {
-  const entry = aiMemoryCache.get(key);
-  if (!entry) return null;
+const validatePassageQuality = (text: string): { isValid: boolean; reason?: string } => {
+  const trimmed = text.trim();
 
-  if (Date.now() > entry.expiresAt) {
-    aiMemoryCache.delete(key);
-    return null;
+  // 1. Length check
+  if (trimmed.length < 15) {
+    return {
+      isValid: false,
+      reason: "Please select or paste a complete sentence or paragraph from the book (at least 15 characters).",
+    };
   }
 
-  return entry.data;
-};
-
-/**
- * Helper to set in-memory cache with eviction to prevent memory growth
- */
-const setInCache = (key: string, data: any) => {
-  if (aiMemoryCache.size >= MAX_CACHE_ENTRIES) {
-    // Evict oldest entry (first key in map)
-    const oldestKey = aiMemoryCache.keys().next().value;
-    if (oldestKey) aiMemoryCache.delete(oldestKey);
+  // 2. Minimum meaningful word count
+  const words = trimmed.split(/\s+/).filter((w) => w.length > 1);
+  if (words.length < 3) {
+    return {
+      isValid: false,
+      reason: "Please provide a complete phrase or sentence from the book rather than single isolated words.",
+    };
   }
 
-  aiMemoryCache.set(key, {
-    data,
-    expiresAt: Date.now() + CACHE_TTL_MS,
-  });
+  // 3. Gibberish & repeated character test (e.g. "aaaaaa", "hahahaha", "asdfasdf")
+  const hasExtremeCharRepetition = /(.)\1{4,}/i.test(trimmed);
+  if (hasExtremeCharRepetition) {
+    return {
+      isValid: false,
+      reason: "The input contains repetitive or unreadable text. Please provide an authentic book excerpt.",
+    };
+  }
+
+  // 4. Repeated identical words test (e.g. "mad mad mad mad mad")
+  const uniqueWords = new Set(words.map((w) => w.toLowerCase()));
+  if (words.length >= 4 && uniqueWords.size <= 2) {
+    return {
+      isValid: false,
+      reason: "Please provide a meaningful passage with sufficient context to explain.",
+    };
+  }
+
+  return { isValid: true };
 };
 
 /**
@@ -90,8 +96,14 @@ export const explainPassage = async (
   try {
     const { passage, bookTitle = "this book", author = "the author", mode = "explain" } = req.body;
 
-    if (!passage || typeof passage !== "string" || passage.trim().length < 10) {
-      return next(createHttpError(400, "Please provide a meaningful passage (at least 10 characters)."));
+    if (!passage || typeof passage !== "string") {
+      return next(createHttpError(400, "A valid passage or text snippet is required."));
+    }
+
+    // Layer 1 Guardrail: Check quality and reject junk/pranks before making API calls
+    const qualityCheck = validatePassageQuality(passage);
+    if (!qualityCheck.isValid) {
+      return next(createHttpError(400, qualityCheck.reason || "Invalid passage text."));
     }
 
     if (passage.length > 4000) {
@@ -100,9 +112,9 @@ export const explainPassage = async (
       );
     }
 
-    // Check In-Memory Cache first (Fast sub-1ms return, 0 API consumption)
+    // Check In-Memory LRU Cache first (O(1) fast sub-1ms return, 0 API consumption)
     const cacheKey = getCacheKey("explain", `${bookTitle}:${passage}`);
-    const cachedResponse = getFromCache(cacheKey);
+    const cachedResponse = aiLRUCache.get(cacheKey);
     if (cachedResponse) {
       return res.status(200).json({
         ...cachedResponse,
@@ -111,7 +123,7 @@ export const explainPassage = async (
     }
 
     const systemInstruction =
-      "You are a friendly, expert reading companion. Explain excerpts and passages clearly, concisely, and naturally for general readers. IMPORTANT: DO NOT use markdown headers (no #, ##, ###) or heavy asterisk bolding (no **). Use clean plain paragraphs and simple bullet points (•) so the text is effortless to read on any mobile or desktop screen.";
+      "You are a friendly, expert reading companion. Explain excerpts and passages clearly, concisely, and naturally for general readers. IMPORTANT RULES:\n1. If the passage is gibberish, an unreadable joke, or completely unrelated to a book or literature, politely state: 'This excerpt appears to be incomplete or unrelated to the book. Please select a passage or dialogue from the reader.'\n2. DO NOT use markdown headers (no #, ##, ###) or heavy asterisk bolding (no **). Use clean plain paragraphs and simple bullet points (•) so the text is effortless to read on any mobile or desktop screen.";
 
     const userPrompt = `Book: "${bookTitle}" by ${author}\nPassage: """${passage}"""\n\nTask: Provide a clear, natural, and friendly explanation of what this means and its significance. Keep it simple, structured with 2-3 short clean sections (Overview, Key Takeaways, Practical Meaning). Do NOT use markdown # headers or ** formatting.`;
 
@@ -146,7 +158,7 @@ export const explainPassage = async (
           explanation,
         };
 
-        setInCache(cacheKey, payload);
+        aiLRUCache.put(cacheKey, payload);
         return res.status(200).json(payload);
       } catch (hfError: any) {
         console.warn("AI Inference fallback:", hfError?.message || hfError);
@@ -184,9 +196,9 @@ export const generatePostHooks = async (
   try {
     const { topic = "General Discussion", bookTitle, draftText = "" } = req.body;
 
-    // Check In-Memory Cache for identical hook generation parameters
+    // Check In-Memory LRU Cache for identical hook generation parameters (O(1) lookup)
     const hookCacheKey = getCacheKey("hooks", `${topic}:${bookTitle || "all"}:${draftText.slice(0, 50)}`);
-    const cachedHooks = getFromCache(hookCacheKey);
+    const cachedHooks = aiLRUCache.get(hookCacheKey);
     if (cachedHooks) {
       return res.status(200).json({
         ...cachedHooks,
@@ -226,12 +238,12 @@ export const generatePostHooks = async (
           try {
             const parsed = JSON.parse(jsonMatch[0]);
             if (Array.isArray(parsed) && parsed.length > 0) {
-              return res.status(200).json({
+              const hookPayload = {
                 success: true,
-                model: config.hfModel,
                 hooks: parsed.slice(0, 3),
-                isLiveModel: true,
-              });
+              };
+              aiLRUCache.put(hookCacheKey, hookPayload);
+              return res.status(200).json(hookPayload);
             }
           } catch (pErr) {
             console.warn("JSON parse failed on LLM response", pErr);
@@ -245,12 +257,12 @@ export const generatePostHooks = async (
           .filter((l) => l.length > 15)
           .slice(0, 3);
 
-        return res.status(200).json({
+        const hookResult = {
           success: true,
-          model: config.hfModel,
           hooks: lines.length >= 2 ? lines : fallbackHooks,
-          isLiveModel: true,
-        });
+        };
+        aiLRUCache.put(hookCacheKey, hookResult);
+        return res.status(200).json(hookResult);
       } catch (err: any) {
         console.warn("Hugging Face hook generation fallback:", err?.message);
         return res.status(200).json({

@@ -16,6 +16,7 @@ import { usePostStore } from '../../store/usePostStore';
 import { useUserStore } from '../../store/useUserStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { usePostEvents } from '../../hooks/usePostEvents';
+import { MinHeap } from '../../utils/minHeap';
 import { CreatePostCard } from './CreatePostCard';
 import { PostCard } from './PostCard';
 import { SuggestedUsersWidget } from './SuggestedUsersWidget';
@@ -75,7 +76,7 @@ export const CommunityFeedSection: React.FC<CommunityFeedSectionProps> = ({
 
   const topics = ['All', ...channels];
 
-  // Dynamically extract hashtags and frequencies from real community posts
+  // Dynamically extract hashtags using Min-Heap for O(N log K) Top-6 calculation
   const trendingHashtags = React.useMemo(() => {
     const counts: Record<string, number> = {};
     posts.forEach((post) => {
@@ -89,14 +90,16 @@ export const CommunityFeedSection: React.FC<CommunityFeedSectionProps> = ({
       }
     });
 
-    return Object.entries(counts)
-      .map(([tag, count]) => ({
+    const heap = new MinHeap<{ tag: string; count: string; numericCount: number }>(6);
+    Object.entries(counts).forEach(([tag, count]) => {
+      heap.push(count, {
         tag,
         count: count === 1 ? '1 post' : `${count} posts`,
         numericCount: count,
-      }))
-      .sort((a, b) => b.numericCount - a.numericCount)
-      .slice(0, 6);
+      });
+    });
+
+    return heap.toSortedArray();
   }, [posts]);
 
   const handleSearchChange = async (e: React.ChangeEvent<HTMLInputElement>) => {

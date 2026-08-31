@@ -1,6 +1,11 @@
 import { create } from 'zustand';
 import api from '../services/api';
 import type { User } from '../types';
+import { PrefixTrie } from '../utils/trie';
+
+// Client-side Prefix Trie indices for instant O(K) @mention autocomplete without database load
+const userTrie = new PrefixTrie<any>();
+const bookTrie = new PrefixTrie<any>();
 
 interface UserProfileData {
   user: User;
@@ -122,12 +127,37 @@ export const useUserStore = create<UserState>((set, get) => ({
   },
 
   searchMentions: async (query: string) => {
-    if (!query.trim()) return { users: [], books: [] };
+    const cleanQuery = query.trim().toLowerCase();
+    if (!cleanQuery) return { users: [], books: [] };
+
+    // 1. Instant O(K) lookup from local Prefix Trie (sub-1ms)
+    const cachedUsers = userTrie.searchPrefix(cleanQuery, 5);
+    const cachedBooks = bookTrie.searchPrefix(cleanQuery, 5);
+
+    if (cachedUsers.length > 0 || cachedBooks.length > 0) {
+      return { users: cachedUsers, books: cachedBooks };
+    }
+
     try {
       const res = await api.get<{ users: any[]; books: any[] }>(
         `/users/mentions?q=${encodeURIComponent(query)}`
       );
-      return res.data || { users: [], books: [] };
+      const data = res.data || { users: [], books: [] };
+
+      // Index newly fetched users & books into the Trie for future instant lookups
+      if (Array.isArray(data.users)) {
+        data.users.forEach((u) => {
+          if (u.name) userTrie.insert(u.name, u);
+          if (u.username) userTrie.insert(u.username, u);
+        });
+      }
+      if (Array.isArray(data.books)) {
+        data.books.forEach((b) => {
+          if (b.title) bookTrie.insert(b.title, b);
+        });
+      }
+
+      return data;
     } catch (err) {
       console.warn('Search mentions error:', err);
       return { users: [], books: [] };
