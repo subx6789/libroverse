@@ -14,7 +14,8 @@ import { useBookStore } from './store/useBookStore';
 import { useAuthStore } from './store/useAuthStore';
 import { useUserStore } from './store/useUserStore';
 import { useToast } from './components/ui/ToastContext';
-import { BookOpen, Library, RefreshCw, Loader2 } from 'lucide-react';
+import { findFuzzySuggestion } from './utils/fuzzySearch';
+import { BookOpen, Library, RefreshCw, Loader2, Sparkles } from 'lucide-react';
 import type { Book } from './types';
 
 // Code-split heavy route modules & reader (isolates pdf-lib)
@@ -134,6 +135,19 @@ export function App() {
 
     return result;
   }, [books, selectedGenre, searchQuery, sortBy]);
+
+  // Compute "Did you mean?" suggestions using Levenshtein distance when results are empty or query is typed
+  const fuzzySuggestion = useMemo(() => {
+    if (!searchQuery.trim() || searchQuery.trim().length < 3) return null;
+
+    const allTitlesAndAuthors = books.flatMap((b) => [
+      b.title,
+      b.genre,
+      typeof b.author === 'object' && b.author ? b.author.name : '',
+    ]).filter(Boolean);
+
+    return findFuzzySuggestion(searchQuery, allTitlesAndAuthors, 2);
+  }, [books, searchQuery]);
 
   // Is current path inside admin dashboard?
   const isAdminRoute = location.pathname.startsWith('/admin');
@@ -265,6 +279,27 @@ export function App() {
                 </div>
 
                 <BookFilterBar />
+
+                {/* Interactive Fuzzy Search "Did you mean?" banner */}
+                {fuzzySuggestion && (
+                  <div className="mt-4 p-3 bg-indigo-50/80 border border-indigo-100 rounded-xl flex items-center justify-between text-xs text-indigo-950 animate-in fade-in">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-indigo-600 shrink-0" />
+                      <span>
+                        Showing results for <span className="font-semibold text-slate-700">"{searchQuery}"</span>. Did you mean:{' '}
+                        <button
+                          onClick={() => {
+                            useBookStore.getState().setSearchQuery(fuzzySuggestion);
+                          }}
+                          className="font-bold text-indigo-600 underline hover:text-indigo-800 cursor-pointer ml-1"
+                        >
+                          "{fuzzySuggestion}"
+                        </button>
+                        ?
+                      </span>
+                    </div>
+                  </div>
+                )}
 
                 <div className="mt-8">
                   {isLoading ? (
