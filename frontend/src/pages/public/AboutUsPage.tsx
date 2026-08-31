@@ -49,9 +49,9 @@ export const AboutUsPage: React.FC<AboutUsPageProps> = ({ onGetStarted }) => {
           <div className="w-10 h-10 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center font-bold">
             <Zap className="w-5 h-5" />
           </div>
-          <h3 className="text-lg font-bold text-slate-900">High-Performance Engineering</h3>
+          <h3 className="text-lg font-bold text-slate-900">High-Performance Experience</h3>
           <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
-            Engineered with strict zero-cost optimization: client-side PDF and image compression, memory streaming directly to Cloudinary, and reactive client state management.
+            Built for instantaneous loading with smart document compression, lightning-fast cloud delivery, and smooth real-time community engagement.
           </p>
         </div>
 

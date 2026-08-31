@@ -119,9 +119,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             <div className="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
               <Zap className="w-5 h-5" />
             </div>
-            <h3 className="text-sm font-bold text-slate-900">Client-Side Compression</h3>
+            <h3 className="text-sm font-bold text-slate-900">Instant Document Optimizer</h3>
             <p className="text-xs text-slate-600 leading-relaxed">
-              Automatic lossless PDF and image optimization reduces bandwidth and upload time by up to 80% before streaming directly to Cloudinary.
+              Smart document optimization ensures ultra-crisp reader rendering with minimal waiting and smooth page transitions.
             </p>
           </div>
 

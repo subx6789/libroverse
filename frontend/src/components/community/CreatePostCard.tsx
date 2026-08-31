@@ -89,9 +89,9 @@ export const CreatePostCard: React.FC<CreatePostCardProps> = ({
       });
 
       setSuggestedHooks(res.hooks || []);
-      showToast("Qwen 2.5 suggested 3 discussion starters!", "success");
+      showToast("Generated 3 fresh conversation starters!", "success");
     } catch (err: any) {
-      showToast("Failed to generate AI hooks. Please try again.", "error");
+      showToast("Could not generate discussion prompts right now. Please try again.", "error");
     } finally {
       setIsGeneratingHooks(false);
     }
@@ -415,7 +415,7 @@ export const CreatePostCard: React.FC<CreatePostCardProps> = ({
             {isGeneratingHooks ? (
               <div className="flex items-center justify-center gap-2 py-3 text-xs text-indigo-700">
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Qwen 2.5 is brainstorming viral discussion hooks...</span>
+                <span>Brainstorming engaging discussion questions...</span>
               </div>
             ) : (
               <div className="space-y-1.5">
@@ -444,7 +444,7 @@ export const CreatePostCard: React.FC<CreatePostCardProps> = ({
               onClick={handleSparkDiscussion}
               disabled={isGeneratingHooks}
               className="px-2.5 py-1.5 rounded-md text-xs font-bold bg-linear-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white flex items-center gap-1.5 cursor-pointer transition-all shadow-2xs hover:shadow-xs"
-              title="Generate viral discussion hooks with Qwen 2.5 AI"
+              title="Generate conversation starters"
             >
               {isGeneratingHooks ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />

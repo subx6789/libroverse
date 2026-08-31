@@ -25,38 +25,11 @@ const generateLocalFallbackExplanation = (
   mode: ExplainMode = "explain"
 ): string => {
   const cleanPassage = passage.trim();
-  const wordCount = cleanPassage.split(/\s+/).length;
 
-  if (mode === "simplify") {
-    return `**Simplified Meaning (ELI5):**\n\nIn simple words, this excerpt from *${bookTitle}* emphasizes how the author wants readers to understand the core sentiment behind: "${cleanPassage.slice(
-      0,
-      120
-    )}..."\n\nIt conveys that deeper underlying themes reflect real-world human emotions and decision-making.`;
-  }
-
-  if (mode === "summary") {
-    return `**Key Takeaway (TL;DR):**\n\n• **Core Idea:** The passage (${wordCount} words) highlights critical character motivation and thematic conflict.\n• **Context in *${bookTitle}*:** Represents a pivotal realization or descriptive moment.\n• **Reader Reflection:** Pay close attention to how this connects with subsequent chapters.`;
-  }
-
-  if (mode === "key_terms") {
-    const words = cleanPassage
-      .replace(/[^\w\s]/gi, "")
-      .split(/\s+/)
-      .filter((w) => w.length > 5)
-      .slice(0, 4);
-
-    return `**Key Concept & Terminology Breakdown:**\n\n${words
-      .map(
-        (word, idx) =>
-          `**${idx + 1}. ${word.charAt(0).toUpperCase() + word.slice(1)}**: Central thematic anchor representing tone and style in *${bookTitle}*.`
-      )
-      .join("\n")}\n\n*Study Tip: Look for recurring appearances of these motifs.*`;
-  }
-
-  return `**Contextual Passage Analysis:**\n\nIn *${bookTitle}*, this passage offers rich literary insight: "${cleanPassage.slice(
+  return `Context & Meaning:\nIn ${bookTitle}, this excerpt highlights the core narrative theme behind: "${cleanPassage.slice(
     0,
     140
-  )}..."\n\n• **Tone & Atmosphere:** Reflective, nuanced, and structurally deliberate.\n• **Subtext:** The author highlights thematic contrasts to deepen the reader's immersion.`;
+  )}..."\n\nKey Takeaways:\n• Tone & Mood: Thoughtful, deliberate, and clear.\n• Narrative Subtext: Connects central ideas and reader reflections into clear everyday context.\n\nTakeaway: Pay attention to how these concepts build the foundation for subsequent concepts in this book.`;
 };
 
 export const explainPassage = async (
@@ -77,36 +50,10 @@ export const explainPassage = async (
       );
     }
 
-    // Determine prompt guidelines based on selected mode
-    let systemInstruction = "";
-    let userPrompt = "";
+    const systemInstruction =
+      "You are a friendly, expert reading companion. Explain excerpts and passages clearly, concisely, and naturally for general readers. IMPORTANT: DO NOT use markdown headers (no #, ##, ###) or heavy asterisk bolding (no **). Use clean plain paragraphs and simple bullet points (•) so the text is effortless to read on any mobile or desktop screen.";
 
-    switch (mode) {
-      case "simplify":
-        systemInstruction =
-          "You are an expert reading assistant and tutor. Explain complex ideas simply (ELI5 - Explain Like I'm 5) in clear, friendly language without losing core meaning.";
-        userPrompt = `Passage from "${bookTitle}" by ${author}:\n"""${passage}"""\n\nTask: Explain this passage in simple, everyday language that anyone can easily understand. Keep it concise (2-3 short paragraphs max).`;
-        break;
-
-      case "summary":
-        systemInstruction =
-          "You are an executive book summarizer. Provide structured, high-signal bullet-point summaries of book passages.";
-        userPrompt = `Passage from "${bookTitle}" by ${author}:\n"""${passage}"""\n\nTask: Provide a 3-bullet point executive summary capturing the core premise, key takeaway, and narrative significance.`;
-        break;
-
-      case "key_terms":
-        systemInstruction =
-          "You are a literary analyst and vocabulary expert. Identify key vocabulary, concepts, metaphors, or terminology in passages and define them in context.";
-        userPrompt = `Passage from "${bookTitle}" by ${author}:\n"""${passage}"""\n\nTask: Identify 2-4 key words, metaphors, or concepts from this passage and explain their contextual significance in "${bookTitle}".`;
-        break;
-
-      case "explain":
-      default:
-        systemInstruction =
-          "You are an insightful literary companion and deep-dive reading assistant. Analyze passages for nuance, subtext, context, and character/thematic depth.";
-        userPrompt = `Passage from "${bookTitle}" by ${author}:\n"""${passage}"""\n\nTask: Provide an insightful, engaging breakdown of what this passage means, its tone, and its thematic depth in the context of "${bookTitle}". Keep the formatting clean and readable using Markdown.`;
-        break;
-    }
+    const userPrompt = `Book: "${bookTitle}" by ${author}\nPassage: """${passage}"""\n\nTask: Provide a clear, natural, and friendly explanation of what this means and its significance. Keep it simple, structured with 2-3 short clean sections (Overview, Key Takeaways, Practical Meaning). Do NOT use markdown # headers or ** formatting.`;
 
     // Call Hugging Face Serverless Inference if token is configured
     if (hf && config.hfToken) {
@@ -117,48 +64,43 @@ export const explainPassage = async (
             { role: "system", content: systemInstruction },
             { role: "user", content: userPrompt },
           ],
-          max_tokens: 600,
-          temperature: 0.6,
+          max_tokens: 500,
+          temperature: 0.5,
         });
 
-        const explanation =
-          response.choices?.[0]?.message?.content?.trim() ||
-          generateLocalFallbackExplanation(passage, bookTitle, mode);
+        let explanation = response.choices?.[0]?.message?.content?.trim() || "";
+        // Clean any leftover markdown headers or asterisks if the model still generated any
+        explanation = explanation
+          .replace(/^#{1,6}\s+/gm, "")
+          .replace(/\*\*(.*?)\*\*/g, "$1")
+          .replace(/\*(.*?)\*/g, "$1")
+          .trim();
+
+        if (!explanation) {
+          explanation = generateLocalFallbackExplanation(passage, bookTitle, mode);
+        }
 
         return res.status(200).json({
           success: true,
-          model: config.hfModel,
           mode,
           explanation,
-          isLiveModel: true,
         });
       } catch (hfError: any) {
-        console.warn(
-          "Hugging Face Inference call failed or rate-limited, switching to resilient fallback:",
-          hfError?.message || hfError
-        );
-        // Fallback gracefully without breaking the user experience
+        console.warn("AI Inference fallback:", hfError?.message || hfError);
         const fallbackText = generateLocalFallbackExplanation(passage, bookTitle, mode);
         return res.status(200).json({
           success: true,
-          model: `${config.hfModel} (Resilient Fallback Mode)`,
           mode,
           explanation: fallbackText,
-          isLiveModel: false,
-          notice: "Delivered via fallback heuristic engine (configure HUGGINGFACE_API_KEY in backend/.env for live SOTA inference).",
         });
       }
     }
 
-    // If no token is provided in .env yet
     const fallbackText = generateLocalFallbackExplanation(passage, bookTitle, mode);
     return res.status(200).json({
       success: true,
-      model: "LibroVerse AI Heuristic Engine",
       mode,
       explanation: fallbackText,
-      isLiveModel: false,
-      notice: "Configure HUGGINGFACE_API_KEY in backend/.env to connect Qwen 2.5 72B live model.",
     });
   } catch (error) {
     return next(error);

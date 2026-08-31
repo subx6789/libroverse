@@ -69,7 +69,7 @@ export const BookUploadModal: React.FC<BookUploadModalProps> = ({
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       if (file.size > 3 * 1024 * 1024) {
-        showToast('Cover image exceeds 3 MB limit (Cloudinary free tier).', 'error');
+        showToast('Cover image exceeds maximum 3 MB limit.', 'error');
         e.target.value = '';
         setCoverFile(null);
         if (!bookToEdit) setCoverPreview('');
@@ -97,7 +97,7 @@ export const BookUploadModal: React.FC<BookUploadModalProps> = ({
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       if (file.size > 10 * 1024 * 1024) {
-        showToast('Book PDF exceeds 10 MB limit (Cloudinary free tier).', 'error');
+        showToast('Book PDF exceeds maximum 10 MB limit.', 'error');
         e.target.value = '';
         return;
       }
