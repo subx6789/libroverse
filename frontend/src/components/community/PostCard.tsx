@@ -17,6 +17,7 @@ import { useUserStore } from '../../store/useUserStore';
 import { useToast } from '../ui/ToastContext';
 import { RichTweetText } from './RichTweetText';
 import { EditPostModal } from './EditPostModal';
+import { formatRelativeTime } from '../../utils/dateFormatter';
 import type { Post, User } from '../../types';
 
 interface PostCardProps {
@@ -201,7 +202,7 @@ export const PostCard: React.FC<PostCardProps> = ({
               </div>
 
               <p className="text-[11px] text-slate-400">
-                {post.createdAt ? new Date(post.createdAt).toLocaleDateString() : 'Just now'} •{' '}
+                {formatRelativeTime(post.createdAt)} •{' '}
                 <span className="text-slate-500 font-medium">{post.topic || 'General'}</span>
               </p>
             </div>
@@ -335,7 +336,7 @@ export const PostCard: React.FC<PostCardProps> = ({
                     <div className="flex items-center justify-between">
                       <span className="font-bold text-slate-800">{comment.user_name}</span>
                       <span className="text-[10px] text-slate-400">
-                        {comment.createdAt ? new Date(comment.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                        {formatRelativeTime(comment.createdAt)}
                       </span>
                     </div>
                     <p className="text-slate-700">{comment.content}</p>
