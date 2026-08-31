@@ -71,12 +71,12 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onPublishClick }) => {
             </div>
 
             <div className="flex items-center gap-3 p-3 rounded-md bg-slate-50 border border-slate-200">
-              <div className="p-1.5 rounded bg-emerald-100 text-emerald-700">
-                <ShieldCheck className="w-4 h-4" />
+              <div className="p-1.5 rounded bg-indigo-100 text-indigo-700">
+                <Sparkles className="w-4 h-4" />
               </div>
               <div>
-                <p className="text-[11px] font-semibold text-slate-500 uppercase">Study Features</p>
-                <p className="text-sm font-bold text-slate-900">Highlighter & Notes</p>
+                <p className="text-[11px] font-semibold text-slate-500 uppercase">AI Features</p>
+                <p className="text-sm font-bold text-slate-900">Passage Explainer</p>
               </div>
             </div>
           </div>

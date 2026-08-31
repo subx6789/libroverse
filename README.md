@@ -14,15 +14,17 @@
 
 ## 🌟 Key Architecture & Capabilities
 
-### 📖 1. Digital Library & In-Browser PDF Reader
+### 📖 1. Digital Library & AI Reading Companion
 - **Curated eBook Catalog**: Filter by dynamic categories, multi-criteria search, and sorting.
-- **Embedded PDF Reading**: View documents in an interactive reading environment.
-- **Interactive Highlighting & Notes**: Select text passages, highlight in multiple colors, add study annotations, and persist notes.
+- **Embedded PDF Reading**: View documents in a clean, interactive reading environment.
+- **AI Reading Companion**: Contextual passage breakdown and concept summarizer powered by open-source SOTA LLMs (Qwen 2.5 72B via Hugging Face Serverless Inference).
 - **Strict Role Boundary**: eBook publishing and updating is exclusively reserved for **Administrators**.
 
-### 💬 2. Reader Social Community & Book Clubs
-- **Community Feed**: Readers share reviews, reading insights, book recommendations, and quotes.
-- **Media Uploads**: Attach images (<= 2MB in-memory gate) and short video clips (<= 10MB in-memory gate).
+### 💬 2. Reader Social Community & Real-Time Engagement
+- **Community Feed**: Readers share reviews, insights, book recommendations, and quotes.
+- **AI Spark Discussion**: Generates engaging conversation starters and debate questions from book context with one click.
+- **Real-Time Server-Sent Events (SSE)**: Live community feed update notifications and interactive like counters without heavy WebSocket overhead.
+- **Media Uploads**: Attach images (<= 3MB in-memory gate) and short video clips (<= 8MB in-memory gate).
 - **Engagement Engine**:
   - **Like & Unlike**: Real-time atomic counters.
   - **Embedded Comments**: Hybrid Mongoose schema embeddings (keeps the 3 most recent comments inline for sub-15ms reads while updating total comment counts).

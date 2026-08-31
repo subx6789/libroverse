@@ -95,11 +95,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           {/* Card 1 */}
           <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs space-y-3 hover:border-slate-300 transition-colors">
             <div className="w-10 h-10 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
-              <BookOpen className="w-5 h-5" />
+              <Sparkles className="w-5 h-5" />
             </div>
-            <h3 className="text-sm font-bold text-slate-900">Instant eBook Reader</h3>
+            <h3 className="text-sm font-bold text-slate-900">AI Reading Companion</h3>
             <p className="text-xs text-slate-600 leading-relaxed">
-              Read digital eBooks cleanly inside the browser with focus viewing, zoom controls, full-screen reading, and instant local note tagging.
+              Read digital eBooks cleanly inside the browser with focus viewing and instant contextual AI passage explanations powered by open-source LLMs.
             </p>
           </div>
 

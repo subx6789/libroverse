@@ -1,12 +1,11 @@
 import { create } from 'zustand';
-import type { Book, BookHighlight, CreateBookPayload, UpdateBookPayload } from '../types';
+import type { Book, CreateBookPayload, UpdateBookPayload } from '../types';
 import { api } from '../services/api';
 
 interface BookState {
   books: Book[];
   selectedBook: Book | null;
   activeReadingBook: Book | null;
-  highlights: BookHighlight[];
   isLoading: boolean;
   isSubmitting: boolean;
   error: string | null;
@@ -20,8 +19,6 @@ interface BookState {
   createBook: (payload: CreateBookPayload) => Promise<void>;
   updateBook: (id: string, payload: UpdateBookPayload) => Promise<void>;
   deleteBook: (id: string) => Promise<void>;
-  addHighlight: (bookId: string, text: string, note?: string, color?: 'yellow' | 'green' | 'blue') => void;
-  removeHighlight: (id: string) => void;
   setSelectedBook: (book: Book | null) => void;
   setActiveReadingBook: (book: Book | null) => void;
   setSearchQuery: (query: string) => void;
@@ -33,14 +30,6 @@ export const useBookStore = create<BookState>((set, get) => ({
   books: [],
   selectedBook: null,
   activeReadingBook: null,
-  highlights: (() => {
-    try {
-      const saved = localStorage.getItem('libroverse_highlights');
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  })(),
   isLoading: false,
   isSubmitting: false,
   error: null,
@@ -56,30 +45,6 @@ export const useBookStore = create<BookState>((set, get) => ({
     } catch (err: any) {
       set({ books: [], isLoading: false, error: err.response?.data?.message || 'Failed to fetch library books' });
     }
-  },
-
-  addHighlight: (bookId, text, note, color = 'yellow') => {
-    const newHighlight: BookHighlight = {
-      id: Math.random().toString(36).substring(2, 9),
-      bookId,
-      text,
-      note,
-      color,
-      createdAt: new Date().toISOString(),
-    };
-    set((state) => {
-      const updated = [newHighlight, ...state.highlights];
-      localStorage.setItem('libroverse_highlights', JSON.stringify(updated));
-      return { highlights: updated };
-    });
-  },
-
-  removeHighlight: (id) => {
-    set((state) => {
-      const updated = state.highlights.filter((h) => h.id !== id);
-      localStorage.setItem('libroverse_highlights', JSON.stringify(updated));
-      return { highlights: updated };
-    });
   },
 
 

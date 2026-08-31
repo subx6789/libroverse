@@ -20,15 +20,6 @@ export interface User {
   createdAt?: string;
 }
 
-export interface BookHighlight {
-  id: string;
-  bookId: string;
-  text: string;
-  note?: string;
-  color: 'yellow' | 'green' | 'blue';
-  createdAt: string;
-}
-
 export interface AuthorItem {
   _id: string;
   name: string;
