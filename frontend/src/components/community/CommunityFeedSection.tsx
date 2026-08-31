@@ -15,6 +15,7 @@ import {
 import { usePostStore } from '../../store/usePostStore';
 import { useUserStore } from '../../store/useUserStore';
 import { useAuthStore } from '../../store/useAuthStore';
+import { usePostEvents } from '../../hooks/usePostEvents';
 import { CreatePostCard } from './CreatePostCard';
 import { PostCard } from './PostCard';
 import { SuggestedUsersWidget } from './SuggestedUsersWidget';
@@ -48,6 +49,19 @@ export const CommunityFeedSection: React.FC<CommunityFeedSectionProps> = ({
 
   const { fetchUserProfile, searchUsers } = useUserStore();
   const { user } = useAuthStore();
+
+  // Real-Time Server-Sent Events (SSE) Live Feed Subscription
+  const { newPostsCount, resetNewPostsCount, isConnected } = usePostEvents({
+    onPostLiked: (event) => {
+      // Optimistically sync likes count in local store if present in current view
+      if (event.postId && typeof event.likesCount === 'number') {
+        const target = posts.find((p) => p._id === event.postId);
+        if (target) {
+          target.likes_count = event.likesCount;
+        }
+      }
+    },
+  });
 
   const [searchQuery, setSearchQuery] = useState('');
   const [profileModalOpen, setProfileModalOpen] = useState(false);
@@ -278,9 +292,43 @@ export const CommunityFeedSection: React.FC<CommunityFeedSectionProps> = ({
           {/* Fast Twitter-Style Composer */}
           <CreatePostCard onOpenAuth={onOpenAuth} />
 
-          {/* Sort Filter Bar */}
+          {/* Real-Time SSE New Posts Available Floating Alert */}
+          {newPostsCount > 0 && (
+            <button
+              onClick={() => {
+                fetchPosts(searchQuery, user?._id);
+                resetNewPostsCount();
+              }}
+              className="w-full py-2.5 px-4 rounded-xl bg-linear-to-r from-sky-600 to-indigo-600 hover:from-sky-700 hover:to-indigo-700 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all animate-bounce cursor-pointer"
+            >
+              <Sparkles className="w-4 h-4 text-amber-300 animate-spin" />
+              <span>
+                ⚡ {newPostsCount} new {newPostsCount === 1 ? 'thought' : 'thoughts'} shared! Click to show.
+              </span>
+            </button>
+          )}
+
+          {/* Sort Filter Bar & SSE Live Status Indicator */}
           <div className="flex items-center justify-between px-1 text-xs font-bold text-slate-500">
-            <span>Filter Stream:</span>
+            <div className="flex items-center gap-2">
+              <span>Filter Stream:</span>
+              <span
+                className={`inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
+                  isConnected
+                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                    : 'bg-slate-100 text-slate-400'
+                }`}
+                title={isConnected ? 'Connected to real-time event stream (SSE)' : 'Connecting to real-time events...'}
+              >
+                <span
+                  className={`w-1.5 h-1.5 rounded-full ${
+                    isConnected ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'
+                  }`}
+                />
+                <span>{isConnected ? 'Live Stream' : 'Offline'}</span>
+              </span>
+            </div>
+
             <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200 shadow-2xs">
               <button
                 onClick={() => setSortBy('latest')}

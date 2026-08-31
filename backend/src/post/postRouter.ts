@@ -9,6 +9,7 @@ import {
   sharePost,
   deletePost,
   updatePost,
+  streamPostEvents,
 } from "./postController";
 import authenticate from "../middlewares/authenticate";
 import { publicRateLimiter, userRateLimiter } from "../middlewares/rateLimiter";
@@ -32,6 +33,9 @@ import {
   addCommentSchema,
   postIdParamSchema,
 } from "../schemas/validationSchemas";
+
+// Real-Time Server-Sent Events stream (no rate-limit penalty on streaming connections)
+postRouter.get("/stream", streamPostEvents);
 
 // Public post browsing routes
 postRouter.get("/channels", publicRateLimiter, getChannels);

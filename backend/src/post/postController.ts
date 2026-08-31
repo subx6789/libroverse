@@ -7,6 +7,7 @@ import userModel from "../user/userModel";
 import cloudinary from "../config/cloudinary";
 import { AuthRequest } from "../middlewares/authenticate";
 import { config } from "../config/config";
+import { postEventHub } from "./postEvents";
 
 export const COMMUNITY_CHANNELS = [
   "General Discussion",
@@ -147,6 +148,15 @@ const createPost = async (req: Request, res: Response, next: NextFunction) => {
       .populate("author", "name email role avatar")
       .populate("ebook_id", "title coverImage genre");
 
+    // Real-Time SSE Broadcast: Notify all connected readers of new post
+    postEventHub.broadcast({
+      type: "POST_CREATED",
+      postId: post._id.toString(),
+      topic: post.topic,
+      authorName: user.name,
+      timestamp: new Date().toISOString(),
+    });
+
     res.status(201).json(populatedPost);
   } catch (err: any) {
     if (uploadResult?.public_id) {
@@ -242,6 +252,14 @@ const toggleLikePost = async (req: Request, res: Response, next: NextFunction) =
 
     await post.save();
 
+    // Real-Time SSE Broadcast: Notify likes count change
+    postEventHub.broadcast({
+      type: "POST_LIKED",
+      postId: post._id.toString(),
+      likesCount: post.likes_count,
+      timestamp: new Date().toISOString(),
+    });
+
     res.json({
       liked: !isLiked,
       likes_count: post.likes_count,
@@ -290,6 +308,15 @@ const addComment = async (req: Request, res: Response, next: NextFunction) => {
     post.recent_comments = updatedRecent as any;
     post.total_comments_count = (post.total_comments_count || 0) + 1;
     await post.save();
+
+    // Real-Time SSE Broadcast: Notify comment added
+    postEventHub.broadcast({
+      type: "COMMENT_ADDED",
+      postId: post._id.toString(),
+      authorName: user.name,
+      commentsCount: post.total_comments_count,
+      timestamp: new Date().toISOString(),
+    });
 
     res.status(201).json({
       comment: newComment,
@@ -498,4 +525,36 @@ const updatePost = async (req: Request, res: Response, next: NextFunction) => {
   }
 };
 
-export { createPost, listPosts, getChannels, toggleLikePost, addComment, sharePost, deletePost, updatePost };
+/**
+ * Server-Sent Events (SSE) Stream for real-time post engagement & alerts
+ */
+const streamPostEvents = (req: Request, res: Response) => {
+  // Set SSE Headers
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache, no-transform");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no");
+
+  // Send initial connection handshake
+  res.write(`data: ${JSON.stringify({ type: "CONNECTED", timestamp: new Date().toISOString() })}\n\n`);
+
+  // Event listener callback
+  const onEvent = (eventData: any) => {
+    res.write(`data: ${JSON.stringify(eventData)}\n\n`);
+  };
+
+  // Keep-alive heartbeat every 25s (prevents Render/Vercel free-tier proxy timeouts)
+  const heartbeat = setInterval(() => {
+    res.write(": heartbeat\n\n");
+  }, 25000);
+
+  postEventHub.on("post_event", onEvent);
+
+  // Clean up when client disconnects
+  req.on("close", () => {
+    clearInterval(heartbeat);
+    postEventHub.off("post_event", onEvent);
+  });
+};
+
+export { createPost, listPosts, getChannels, toggleLikePost, addComment, sharePost, deletePost, updatePost, streamPostEvents };
