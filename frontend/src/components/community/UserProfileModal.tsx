@@ -139,16 +139,8 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
               {/* Stats Counter Row */}
               <div className="flex flex-wrap items-center gap-5 pt-2 text-xs text-slate-600 font-semibold">
                 <div className="flex items-center gap-1.5">
-                  <span className="text-slate-900 font-extrabold">{user.followingCount ?? (user.following || []).length}</span>
-                  <span className="text-slate-500">Following</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-slate-900 font-extrabold">{user.followersCount ?? (user.followers || []).length}</span>
-                  <span className="text-slate-500">Followers</span>
-                </div>
-                <div className="flex items-center gap-1.5">
                   <span className="text-slate-900 font-extrabold">{posts.length}</span>
-                  <span className="text-slate-500">Posts & Reviews</span>
+                  <span className="text-slate-500">Publications & Discussions</span>
                 </div>
                 <div className="flex items-center gap-1 text-slate-400">
                   <Calendar className="w-3.5 h-3.5" />
