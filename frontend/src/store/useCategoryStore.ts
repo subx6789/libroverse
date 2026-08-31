@@ -17,7 +17,7 @@ interface CategoryState {
   deleteCategory: (id: string) => Promise<void>;
 }
 
-export const useCategoryStore = create<CategoryState>((set) => ({
+export const useCategoryStore = create<CategoryState>((set, get) => ({
   categories: [],
   isLoading: false,
   error: null,
@@ -33,9 +33,26 @@ export const useCategoryStore = create<CategoryState>((set) => ({
   },
 
   createCategory: async (name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) {
+      throw new Error('Category name cannot be empty');
+    }
+
+    // Client-Side Normalized Deduplication Gate (DSA Set & Alphanumeric Key check)
+    const normalizedKey = trimmed.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const currentCategories = get().categories;
+
+    const duplicate = currentCategories.find(
+      (c: CategoryItem) => c.name.toLowerCase().replace(/[^a-z0-9]/g, '') === normalizedKey
+    );
+
+    if (duplicate) {
+      throw new Error(`Category "${duplicate.name}" already exists`);
+    }
+
     try {
       set({ isLoading: true, error: null });
-      const res = await api.post<CategoryItem>('/categories', { name });
+      const res = await api.post<CategoryItem>('/categories', { name: trimmed });
       const newCategory = res.data;
       set((state) => ({
         categories: [...state.categories, newCategory].sort((a, b) => a.name.localeCompare(b.name)),
@@ -43,7 +60,7 @@ export const useCategoryStore = create<CategoryState>((set) => ({
       }));
       return newCategory;
     } catch (err: any) {
-      const msg = err.response?.data?.message || 'Failed to create category';
+      const msg = err.response?.data?.message || err.message || 'Failed to create category';
       set({ isLoading: false, error: msg });
       throw new Error(msg, { cause: err });
     }

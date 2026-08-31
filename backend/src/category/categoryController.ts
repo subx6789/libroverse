@@ -33,13 +33,31 @@ const createCategory = async (req: Request, res: Response, next: NextFunction) =
     }
 
     const formattedName = toTitleCase(name);
+    const normalizedKey = formattedName.toLowerCase().replace(/[^a-z0-9]/g, "");
 
+    // 1. Strict Case-Insensitive & Whitespace Collapsed Regex Check
     const existing = await categoryModel.findOne({
-      name: { $regex: new RegExp(`^${formattedName}$`, "i") },
+      name: { $regex: new RegExp(`^\\s*${formattedName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*$`, "i") },
     });
 
     if (existing) {
-      return next(createHttpError(400, `Category "${formattedName}" already exists`));
+      return next(createHttpError(409, `Category "${existing.name}" already exists`));
+    }
+
+    // 2. Normalized alphanumeric check to prevent variations like "Sci-Fi" vs "Sci Fi" or "Self-Help" vs "Self Help"
+    const allCategories = await categoryModel.find({}, "name");
+    const duplicateNormalized = allCategories.find((cat) => {
+      const catKey = cat.name.toLowerCase().replace(/[^a-z0-9]/g, "");
+      return catKey === normalizedKey;
+    });
+
+    if (duplicateNormalized) {
+      return next(
+        createHttpError(
+          409,
+          `A similar category "${duplicateNormalized.name}" already exists. Please avoid duplicate variations.`
+        )
+      );
     }
 
     const category = await categoryModel.create({ name: formattedName });
