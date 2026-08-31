@@ -13,10 +13,16 @@ import {
   Tag,
   User as UserIcon,
   Calendar,
+  Sparkles,
+  Loader2,
+  Copy,
+  Check,
+  BrainCircuit,
 } from 'lucide-react';
 import type { Book } from '../../types';
 import { useBookStore } from '../../store/useBookStore';
 import { useToast } from '../ui/ToastContext';
+import { explainPassageAPI, type ExplainMode } from '../../services/aiService';
 
 interface BookReaderModalProps {
   book: Book | null;
@@ -29,6 +35,13 @@ export const BookReaderModal: React.FC<BookReaderModalProps> = ({ book, onClose 
   const [highlightText, setHighlightText] = useState('');
   const [highlightNote, setHighlightNote] = useState('');
   const [selectedColor, setSelectedColor] = useState<'yellow' | 'green' | 'blue'>('yellow');
+
+  // AI Passage Explainer State
+  const [aiMode, setAiMode] = useState<ExplainMode>('explain');
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiExplanation, setAiExplanation] = useState<string | null>(null);
+  const [aiModelUsed, setAiModelUsed] = useState<string | null>(null);
+  const [copiedAiText, setCopiedAiText] = useState(false);
 
   const { highlights, addHighlight, removeHighlight } = useBookStore();
   const { showToast } = useToast();
@@ -53,6 +66,56 @@ export const BookReaderModal: React.FC<BookReaderModalProps> = ({ book, onClose 
     setHighlightText('');
     setHighlightNote('');
     showToast('Quote saved to your interactive study notes!', 'success');
+  };
+
+  const handleAiAnalyze = async (overrideText?: string, modeToUse: ExplainMode = aiMode) => {
+    const textToAnalyze = (overrideText || highlightText).trim();
+    if (!textToAnalyze) {
+      showToast('Please enter or select a quote first to analyze with AI.', 'info');
+      return;
+    }
+
+    setAiLoading(true);
+    setAiExplanation(null);
+    try {
+      const res = await explainPassageAPI({
+        passage: textToAnalyze,
+        bookTitle: book.title,
+        author: authorName,
+        mode: modeToUse,
+      });
+
+      setAiExplanation(res.explanation);
+      setAiModelUsed(res.model);
+      showToast('AI analysis generated successfully!', 'success');
+    } catch (err: any) {
+      showToast(
+        err.response?.data?.message || 'Failed to generate AI analysis. Please try again.',
+        'error'
+      );
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const handleCopyAiExplanation = () => {
+    if (!aiExplanation) return;
+    navigator.clipboard?.writeText(aiExplanation);
+    setCopiedAiText(true);
+    showToast('AI explanation copied to clipboard!', 'info');
+    setTimeout(() => setCopiedAiText(false), 2000);
+  };
+
+  const handleSaveAiToNote = () => {
+    if (!aiExplanation) return;
+    const cleanSnippet = (highlightText || 'AI Passage Analysis').slice(0, 80);
+    addHighlight(
+      book._id,
+      `[AI ${aiMode.toUpperCase()}]: ${cleanSnippet}...`,
+      aiExplanation.slice(0, 200) + '...',
+      'blue'
+    );
+    showToast('Saved AI analysis directly to your Study Notes!', 'success');
   };
 
   return (
@@ -181,15 +244,118 @@ export const BookReaderModal: React.FC<BookReaderModalProps> = ({ book, onClose 
                     placeholder="Personal note (optional)..."
                     className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs focus:outline-hidden focus:ring-1 focus:ring-indigo-600"
                   />
-                  <button
-                    type="submit"
-                    className="w-full py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors shadow-xs"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Save Note</span>
-                  </button>
+                  
+                  <div className="grid grid-cols-2 gap-1.5 pt-1">
+                    <button
+                      type="submit"
+                      className="py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors shadow-xs"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Save Note</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={aiLoading || !highlightText.trim()}
+                      onClick={() => handleAiAnalyze()}
+                      className="py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors shadow-xs"
+                      title="Analyze with Qwen 2.5 AI"
+                    >
+                      {aiLoading ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                      )}
+                      <span>AI Analyze</span>
+                    </button>
+                  </div>
                 </form>
+
+                {/* AI Mode Selector Tabs */}
+                <div className="flex items-center justify-between gap-1 pt-2 border-t border-slate-200/80 text-[10px]">
+                  {(
+                    [
+                      { id: 'explain', label: 'Explain' },
+                      { id: 'simplify', label: 'ELI5' },
+                      { id: 'summary', label: 'Summary' },
+                      { id: 'key_terms', label: 'Terms' },
+                    ] as const
+                  ).map((m) => (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => {
+                        setAiMode(m.id);
+                        if (highlightText.trim()) {
+                          handleAiAnalyze(highlightText, m.id);
+                        }
+                      }}
+                      className={`px-2 py-1 rounded-md font-bold transition-colors cursor-pointer ${
+                        aiMode === m.id
+                          ? 'bg-indigo-100 text-indigo-700'
+                          : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
+                      }`}
+                    >
+                      {m.label}
+                    </button>
+                  ))}
+                </div>
               </div>
+
+              {/* AI Analysis Insight Card */}
+              {(aiExplanation || aiLoading) && (
+                <div className="p-3.5 rounded-xl bg-linear-to-br from-indigo-50/90 to-purple-50/90 border border-indigo-200/80 shadow-xs space-y-2.5 animate-in fade-in">
+                  <div className="flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-1.5 font-bold text-indigo-900">
+                      <BrainCircuit className="w-4 h-4 text-indigo-600" />
+                      <span>AI Literary Insight</span>
+                      <span className="text-[10px] font-semibold text-indigo-600/80 uppercase px-1.5 py-0.2 bg-indigo-100 rounded">
+                        {aiMode}
+                      </span>
+                    </div>
+
+                    {aiExplanation && (
+                      <div className="flex items-center gap-1 text-slate-500">
+                        <button
+                          onClick={handleCopyAiExplanation}
+                          className="p-1 hover:text-indigo-600 cursor-pointer rounded transition-colors"
+                          title="Copy AI Explanation"
+                        >
+                          {copiedAiText ? (
+                            <Check className="w-3.5 h-3.5 text-emerald-600" />
+                          ) : (
+                            <Copy className="w-3.5 h-3.5" />
+                          )}
+                        </button>
+                        <button
+                          onClick={handleSaveAiToNote}
+                          className="p-1 hover:text-indigo-600 cursor-pointer rounded transition-colors text-[10px] font-bold text-indigo-700 bg-white border border-indigo-200 px-1.5"
+                          title="Save to study notes"
+                        >
+                          + Add to Notes
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {aiLoading ? (
+                    <div className="py-4 flex flex-col items-center justify-center gap-2 text-indigo-700 text-xs">
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <p className="font-medium">Analyzing passage with Qwen 2.5 72B...</p>
+                    </div>
+                  ) : (
+                    <div className="text-xs text-slate-800 leading-relaxed max-h-48 overflow-y-auto space-y-1.5 whitespace-pre-line bg-white/70 p-2.5 rounded-lg border border-indigo-100">
+                      {aiExplanation}
+                    </div>
+                  )}
+
+                  {aiModelUsed && (
+                    <div className="text-[10px] text-slate-400 text-right">
+                      Powered by {aiModelUsed}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Saved Notes List */}
               <div className="space-y-2">

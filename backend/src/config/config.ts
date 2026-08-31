@@ -22,5 +22,9 @@ const _config = {
   maxCoverBannerSizeMb: 5,
   maxPostImageSizeMb: 3,
   maxPostVideoSizeMb: 8,
+
+  // Hugging Face Open-Source AI Configuration (Free Tier / Serverless Inference)
+  hfToken: process.env.HUGGINGFACE_API_KEY || process.env.HF_TOKEN || "",
+  hfModel: process.env.HF_MODEL || "Qwen/Qwen2.5-72B-Instruct",
 };
 export const config = Object.freeze(_config);

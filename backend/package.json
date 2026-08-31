@@ -29,6 +29,7 @@
     "typescript-eslint": "^8.26.0"
   },
   "dependencies": {
+    "@huggingface/inference": "^4.13.28",
     "@types/bcrypt": "^6.0.0",
     "@types/cors": "^2.8.19",
     "@types/dotenv": "^6.1.1",

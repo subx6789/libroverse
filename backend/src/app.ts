@@ -55,6 +55,7 @@ app.get("/api/health", (req, res) => {
 
 import categoryRouter from "./category/categoryRouter";
 import postRouter from "./post/postRouter";
+import aiRouter from "./ai/aiRouter";
 
 // Routes
 app.get("/", (req, res) => {
@@ -68,6 +69,7 @@ app.use("/api/users", userRouter);
 app.use("/api/books", bookRouter);
 app.use("/api/categories", categoryRouter);
 app.use("/api/posts", postRouter);
+app.use("/api/ai", aiRouter);
 
 
 //Global error handler
