@@ -58,23 +58,23 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           </button>
         </div>
 
-        {/* Highlight Stats Banner */}
+        {/* User-Centric Value Metrics Banner */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 max-w-4xl mx-auto pt-8">
           <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs text-left">
-            <p className="text-xl sm:text-2xl font-bold text-slate-900 font-mono">100%</p>
-            <p className="text-xs font-medium text-slate-500 mt-0.5">Free-Tier Cloud Ready</p>
-          </div>
-          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs text-left">
-            <p className="text-xl sm:text-2xl font-bold text-slate-900 font-mono">Sub-50ms</p>
+            <p className="text-xl sm:text-2xl font-bold text-slate-900">Instant</p>
             <p className="text-xs font-medium text-slate-500 mt-0.5">In-Browser PDF Reader</p>
           </div>
           <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs text-left">
-            <p className="text-xl sm:text-2xl font-bold text-slate-900 font-mono">Smart</p>
-            <p className="text-xs font-medium text-slate-500 mt-0.5">Direct Stream Compressor</p>
+            <p className="text-xl sm:text-2xl font-bold text-indigo-600">AI-Powered</p>
+            <p className="text-xs font-medium text-slate-500 mt-0.5">Reading Companion</p>
           </div>
           <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs text-left">
-            <p className="text-xl sm:text-2xl font-bold text-slate-900 font-mono">Focused</p>
-            <p className="text-xs font-medium text-slate-500 mt-0.5">Micro-Reader Feed</p>
+            <p className="text-xl sm:text-2xl font-bold text-emerald-600">Real-Time</p>
+            <p className="text-xs font-medium text-slate-500 mt-0.5">Live Reader Discussions</p>
+          </div>
+          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs text-left">
+            <p className="text-xl sm:text-2xl font-bold text-sky-600">Clean</p>
+            <p className="text-xs font-medium text-slate-500 mt-0.5">Distraction-Free Platform</p>
           </div>
         </div>
       </section>
