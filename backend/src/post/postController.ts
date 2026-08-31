@@ -12,7 +12,6 @@ import { postEventHub } from "./postEvents";
 export const COMMUNITY_CHANNELS = [
   "General Discussion",
   "Book Reviews & Ratings",
-  "Reading Notes & Highlights",
   "Tech & Software Architecture",
   "Science Fiction & Fantasy",
   "Self-Improvement & Habits",

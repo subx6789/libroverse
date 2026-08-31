@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   MessageSquare,
   Flame,
@@ -32,6 +33,9 @@ export const CommunityFeedSection: React.FC<CommunityFeedSectionProps> = ({
   onOpenAuth,
   onNavigateStore,
 }) => {
+  const [searchParams] = useSearchParams();
+  const targetPostId = searchParams.get('post');
+
   const {
     posts,
     channels,
@@ -49,7 +53,14 @@ export const CommunityFeedSection: React.FC<CommunityFeedSectionProps> = ({
   } = usePostStore();
 
   const { fetchUserProfile, searchUsers } = useUserStore();
-  const { user } = useAuthStore();
+  const { user, isAuthenticated } = useAuthStore();
+
+  // If unauthenticated user arrives via a shared community post link, gate with auth modal
+  useEffect(() => {
+    if (targetPostId && !isAuthenticated) {
+      onOpenAuth();
+    }
+  }, [targetPostId, isAuthenticated, onOpenAuth]);
 
   // Real-Time Server-Sent Events (SSE) Live Feed Subscription
   const { newPostsCount, resetNewPostsCount, isConnected } = usePostEvents({

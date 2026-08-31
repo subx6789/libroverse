@@ -1,7 +1,10 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import type { Book } from '../../types';
 import { useAuthStore } from '../../store/useAuthStore';
-import { BookOpen, User as UserIcon, Trash2, Edit3, Download } from 'lucide-react';
+import { usePostStore } from '../../store/usePostStore';
+import { useToast } from '../ui/ToastContext';
+import { BookOpen, User as UserIcon, Trash2, Edit3, Download, Share2 } from 'lucide-react';
 
 interface BookCardProps {
   book: Book;
@@ -11,7 +14,10 @@ interface BookCardProps {
 }
 
 export const BookCard: React.FC<BookCardProps> = ({ book, onRead, onEdit, onDelete }) => {
+  const navigate = useNavigate();
   const { user } = useAuthStore();
+  const { setDraftContent, setDraftTopic } = usePostStore();
+  const { showToast } = useToast();
 
   const authorName =
     book.authors && book.authors.length > 0
@@ -25,6 +31,16 @@ export const BookCard: React.FC<BookCardProps> = ({ book, onRead, onEdit, onDele
   const isOwner = user && authorId && user._id === authorId;
   const isAdmin = user?.role === 'admin' || user?.email?.toLowerCase().includes('admin');
   const canManage = isOwner || isAdmin;
+
+  const handleShareBook = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const cleanTag = book.title.replace(/[^a-zA-Z0-9_]/g, '');
+    const draftText = `📚 Reading "${book.title}" by ${authorName}.\n\nWhat are everyone's key takeaways from this book? #${cleanTag} #LibroVerse`;
+    setDraftContent(draftText);
+    setDraftTopic('Book Reviews & Ratings');
+    navigate('/community');
+    showToast(`Shared "${book.title}" to community draft!`, 'success');
+  };
 
   return (
     <div className="theme-card rounded-lg overflow-hidden flex flex-col justify-between group">
@@ -89,6 +105,14 @@ export const BookCard: React.FC<BookCardProps> = ({ book, onRead, onEdit, onDele
           >
             <BookOpen className="w-3.5 h-3.5" />
             <span>Read PDF</span>
+          </button>
+
+          <button
+            onClick={handleShareBook}
+            className="p-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-indigo-600 transition-colors cursor-pointer"
+            title="Share to Community"
+          >
+            <Share2 className="w-3.5 h-3.5" />
           </button>
 
           {book.file && (

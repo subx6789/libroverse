@@ -88,10 +88,11 @@ export const PostCard: React.FC<PostCardProps> = ({
 
   const handleShare = async () => {
     try {
+      const shareUrl = `${window.location.origin}/community?post=${post._id}`;
       if (navigator.clipboard) {
-        await navigator.clipboard.writeText(window.location.href);
+        await navigator.clipboard.writeText(shareUrl);
         await sharePost(post._id);
-        showToast('Post link copied to clipboard!', 'success');
+        showToast('Direct post link copied to clipboard!', 'success');
       } else {
         await sharePost(post._id);
         showToast('Post shared!', 'success');

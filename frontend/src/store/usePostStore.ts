@@ -12,12 +12,16 @@ interface PostState {
   sortBy: 'latest' | 'top' | 'discussed';
   feedTab: 'for-you' | 'following';
   activeHashtag: string | null;
+  draftContent: string;
+  draftTopic: string;
 
   fetchChannels: () => Promise<string[]>;
   setSelectedTopic: (topic: string) => void;
   setSortBy: (sort: 'latest' | 'top' | 'discussed') => void;
   setFeedTab: (feedTab: 'for-you' | 'following', userId?: string) => void;
   setActiveHashtag: (hashtag: string | null) => void;
+  setDraftContent: (content: string) => void;
+  setDraftTopic: (topic: string) => void;
   fetchPosts: (search?: string, currentUserId?: string) => Promise<void>;
   createPost: (data: {
     title?: string;
@@ -52,6 +56,11 @@ export const usePostStore = create<PostState>((set, get) => ({
   sortBy: 'latest',
   feedTab: 'for-you',
   activeHashtag: null,
+  draftContent: '',
+  draftTopic: '',
+
+  setDraftContent: (draftContent) => set({ draftContent }),
+  setDraftTopic: (draftTopic) => set({ draftTopic }),
 
   fetchChannels: async () => {
     try {

@@ -27,17 +27,30 @@ interface CreatePostCardProps {
 export const CreatePostCard: React.FC<CreatePostCardProps> = ({
   onOpenAuth,
 }) => {
-  const { createPost, isSubmitting, selectedTopic, posts, channels, fetchChannels } = usePostStore();
+  const { createPost, isSubmitting, selectedTopic, posts, channels, fetchChannels, draftContent, draftTopic, setDraftContent, setDraftTopic } = usePostStore();
   const { searchMentions } = useUserStore();
   const { user } = useAuthStore();
   const { showToast } = useToast();
 
-  const [content, setContent] = useState("");
+  const [content, setContent] = useState(draftContent || "");
   const [topic, setTopic] = useState(
-    selectedTopic && selectedTopic !== "All"
-      ? selectedTopic
-      : channels[0] || "General Discussion",
+    draftTopic || (selectedTopic && selectedTopic !== "All" ? selectedTopic : channels[0] || "General Discussion")
   );
+
+  // Sync draftContent into local state when user navigates from AI Reader
+  useEffect(() => {
+    if (draftContent) {
+      setContent(draftContent);
+      setDraftContent(""); // Clear after populating
+    }
+  }, [draftContent, setDraftContent]);
+
+  useEffect(() => {
+    if (draftTopic) {
+      setTopic(draftTopic);
+      setDraftTopic("");
+    }
+  }, [draftTopic, setDraftTopic]);
 
   // AI Hook Generator State
   const [isGeneratingHooks, setIsGeneratingHooks] = useState(false);

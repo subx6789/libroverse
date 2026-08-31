@@ -14,7 +14,6 @@ import {
   Loader2,
   Copy,
   Check,
-  Share2,
   HelpCircle,
 } from "lucide-react";
 import type { Book } from "../../types";
@@ -105,20 +104,6 @@ export const BookReaderModal: React.FC<BookReaderModalProps> = ({
     setCopiedAiText(true);
     showToast("Explanation copied to clipboard!", "info");
     setTimeout(() => setCopiedAiText(false), 2000);
-  };
-
-  const handleShareToCommunity = () => {
-    const cleanBookTag = book.title.replace(/\s+/g, "-");
-    const snippet = passageInput ? `"${passageInput.slice(0, 100)}..." ` : "";
-    const postText = `${snippet}\n\n💡 AI Breakdown: ${aiExplanation?.slice(0, 160)}...\n\n— from #${cleanBookTag} #LibroVerse`;
-
-    navigator.clipboard?.writeText(postText);
-    onClose();
-    navigate("/community");
-    showToast(
-      "Insights copied! Head over to the community feed to share.",
-      "info",
-    );
   };
 
   return (
@@ -297,27 +282,23 @@ export const BookReaderModal: React.FC<BookReaderModalProps> = ({
                       Analysis & Context
                     </span>
 
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={handleCopyAiExplanation}
-                        className="p-1.5 rounded-lg bg-white/80 hover:bg-white border border-indigo-100 text-slate-600 hover:text-indigo-600 cursor-pointer transition-colors"
-                        title="Copy to clipboard"
-                      >
-                        {copiedAiText ? (
+                    <button
+                      onClick={handleCopyAiExplanation}
+                      className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white/80 hover:bg-white border border-indigo-100 text-slate-600 hover:text-indigo-600 cursor-pointer transition-colors text-[11px] font-semibold"
+                      title="Copy to clipboard"
+                    >
+                      {copiedAiText ? (
+                        <>
                           <Check className="w-3.5 h-3.5 text-emerald-600" />
-                        ) : (
+                          <span className="text-emerald-600">Copied</span>
+                        </>
+                      ) : (
+                        <>
                           <Copy className="w-3.5 h-3.5" />
-                        )}
-                      </button>
-
-                      <button
-                        onClick={handleShareToCommunity}
-                        className="p-1.5 rounded-lg bg-white/80 hover:bg-white border border-indigo-100 text-slate-600 hover:text-indigo-600 cursor-pointer transition-colors"
-                        title="Share insights to Community"
-                      >
-                        <Share2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
+                          <span>Copy</span>
+                        </>
+                      )}
+                    </button>
                   </div>
 
                   <div className="text-xs text-slate-800 leading-relaxed max-h-60 overflow-y-auto space-y-2 whitespace-pre-line bg-white/80 p-3 rounded-xl border border-indigo-100/70 shadow-2xs font-normal">
