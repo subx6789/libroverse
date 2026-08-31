@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   X,
@@ -7,9 +7,6 @@ import {
   BookOpen,
   Maximize2,
   Minimize2,
-  Highlighter,
-  Plus,
-  Trash2,
   Tag,
   User as UserIcon,
   Calendar,
@@ -17,34 +14,49 @@ import {
   Loader2,
   Copy,
   Check,
-  BrainCircuit,
+  Share2,
+  HelpCircle,
 } from 'lucide-react';
 import type { Book } from '../../types';
-import { useBookStore } from '../../store/useBookStore';
 import { useToast } from '../ui/ToastContext';
-import { explainPassageAPI, type ExplainMode } from '../../services/aiService';
+import { explainPassageAPI } from '../../services/aiService';
 
 interface BookReaderModalProps {
   book: Book | null;
   onClose: () => void;
 }
 
+const LOADING_STATUSES = [
+  'Reading passage...',
+  'Analyzing literary context...',
+  'Synthesizing key insights...',
+  'Cooking explanation...',
+];
+
 export const BookReaderModal: React.FC<BookReaderModalProps> = ({ book, onClose }) => {
   const navigate = useNavigate();
   const [fullscreen, setFullscreen] = useState(false);
-  const [highlightText, setHighlightText] = useState('');
-  const [highlightNote, setHighlightNote] = useState('');
-  const [selectedColor, setSelectedColor] = useState<'yellow' | 'green' | 'blue'>('yellow');
+  const [passageInput, setPassageInput] = useState('');
 
-  // AI Passage Explainer State
-  const [aiMode, setAiMode] = useState<ExplainMode>('explain');
+  // AI State
   const [aiLoading, setAiLoading] = useState(false);
+  const [loadingStepIndex, setLoadingStepIndex] = useState(0);
   const [aiExplanation, setAiExplanation] = useState<string | null>(null);
-  const [aiModelUsed, setAiModelUsed] = useState<string | null>(null);
   const [copiedAiText, setCopiedAiText] = useState(false);
 
-  const { highlights, addHighlight, removeHighlight } = useBookStore();
   const { showToast } = useToast();
+
+  // Cycling animated loader text
+  useEffect(() => {
+    let interval: any;
+    if (aiLoading) {
+      setLoadingStepIndex(0);
+      interval = setInterval(() => {
+        setLoadingStepIndex((prev) => (prev + 1) % LOADING_STATUSES.length);
+      }, 1200);
+    }
+    return () => clearInterval(interval);
+  }, [aiLoading]);
 
   if (!book) return null;
 
@@ -54,24 +66,11 @@ export const BookReaderModal: React.FC<BookReaderModalProps> = ({ book, onClose 
       : typeof book.author === 'object' && book.author
       ? book.author.name
       : 'Author';
-  const bookHighlights = highlights.filter((h) => h.bookId === book._id);
 
-  const handleSaveHighlight = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!highlightText.trim()) {
-      showToast('Please type or paste a quote/text to highlight', 'error');
-      return;
-    }
-    addHighlight(book._id, highlightText.trim(), highlightNote.trim(), selectedColor);
-    setHighlightText('');
-    setHighlightNote('');
-    showToast('Quote saved to your interactive study notes!', 'success');
-  };
-
-  const handleAiAnalyze = async (overrideText?: string, modeToUse: ExplainMode = aiMode) => {
-    const textToAnalyze = (overrideText || highlightText).trim();
+  const handleAiExplain = async (overrideText?: string) => {
+    const textToAnalyze = (overrideText || passageInput).trim();
     if (!textToAnalyze) {
-      showToast('Please enter or select a quote first to analyze with AI.', 'info');
+      showToast('Please paste or type a passage to understand.', 'info');
       return;
     }
 
@@ -82,15 +81,13 @@ export const BookReaderModal: React.FC<BookReaderModalProps> = ({ book, onClose 
         passage: textToAnalyze,
         bookTitle: book.title,
         author: authorName,
-        mode: modeToUse,
+        mode: 'explain',
       });
 
       setAiExplanation(res.explanation);
-      setAiModelUsed(res.model);
-      showToast('AI analysis generated successfully!', 'success');
     } catch (err: any) {
       showToast(
-        err.response?.data?.message || 'Failed to generate AI analysis. Please try again.',
+        err.response?.data?.message || 'Failed to explain passage. Please try again.',
         'error'
       );
     } finally {
@@ -102,34 +99,33 @@ export const BookReaderModal: React.FC<BookReaderModalProps> = ({ book, onClose 
     if (!aiExplanation) return;
     navigator.clipboard?.writeText(aiExplanation);
     setCopiedAiText(true);
-    showToast('AI explanation copied to clipboard!', 'info');
+    showToast('Explanation copied to clipboard!', 'info');
     setTimeout(() => setCopiedAiText(false), 2000);
   };
 
-  const handleSaveAiToNote = () => {
-    if (!aiExplanation) return;
-    const cleanSnippet = (highlightText || 'AI Passage Analysis').slice(0, 80);
-    addHighlight(
-      book._id,
-      `[AI ${aiMode.toUpperCase()}]: ${cleanSnippet}...`,
-      aiExplanation.slice(0, 200) + '...',
-      'blue'
-    );
-    showToast('Saved AI analysis directly to your Study Notes!', 'success');
+  const handleShareToCommunity = () => {
+    const cleanBookTag = book.title.replace(/\s+/g, '-');
+    const snippet = passageInput ? `"${passageInput.slice(0, 100)}..." ` : '';
+    const postText = `${snippet}\n\n💡 AI Breakdown: ${aiExplanation?.slice(0, 160)}...\n\n— from #${cleanBookTag} #LibroVerse`;
+    
+    navigator.clipboard?.writeText(postText);
+    onClose();
+    navigate('/community');
+    showToast('Insights copied! Head over to the community feed to share.', 'info');
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in">
       <div
-        className={`relative w-full bg-white rounded-lg border border-slate-200 shadow-xl flex flex-col overflow-hidden transition-all duration-200 ${
+        className={`relative w-full bg-white rounded-2xl border border-slate-200 shadow-2xl flex flex-col overflow-hidden transition-all duration-200 ${
           fullscreen ? 'h-[98vh] max-w-[98vw]' : 'h-[88vh] max-w-6xl'
         }`}
       >
         
         {/* Reader Top Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-slate-50">
-          <div className="flex items-center gap-2.5 overflow-hidden">
-            <div className="w-8 h-8 rounded-md bg-indigo-600 text-white flex items-center justify-center font-bold shrink-0">
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-200 bg-slate-50/80">
+          <div className="flex items-center gap-3 overflow-hidden">
+            <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold shrink-0 shadow-xs">
               <BookOpen className="w-4 h-4" />
             </div>
             <div className="overflow-hidden">
@@ -137,21 +133,21 @@ export const BookReaderModal: React.FC<BookReaderModalProps> = ({ book, onClose 
               <div className="flex items-center gap-2 text-xs text-slate-500">
                 <span className="font-semibold text-slate-700">{authorName}</span>
                 <span>•</span>
-                <span className="px-1.5 py-0.5 rounded bg-slate-200/80 text-slate-700 text-[10px] font-bold">
+                <span className="px-2 py-0.5 rounded-full bg-slate-200/80 text-slate-700 text-[10px] font-bold">
                   {book.genre}
                 </span>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-1 shrink-0">
+          <div className="flex items-center gap-1.5 shrink-0">
             {book.file && (
               <a
                 href={book.file}
                 target="_blank"
                 rel="noopener noreferrer"
                 download
-                className="p-1.5 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors"
+                className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer"
                 title="Download PDF"
               >
                 <Download className="w-4 h-4" />
@@ -204,215 +200,121 @@ export const BookReaderModal: React.FC<BookReaderModalProps> = ({ book, onClose 
             )}
           </div>
 
-          {/* Unique Feature: Interactive Study Notes & Quotes Sidebar */}
-          <div className="w-full md:w-88 bg-white p-5 overflow-y-auto space-y-5 flex flex-col justify-between shrink-0 border-l border-slate-100">
+          {/* Clean AI Reading Companion Sidebar */}
+          <div className="w-full md:w-96 bg-white p-5 overflow-y-auto space-y-5 flex flex-col justify-between shrink-0 border-l border-slate-100">
             <div className="space-y-4">
               
-              {/* Highlight / Annotation Form */}
-              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                    <Highlighter className="w-4 h-4 text-indigo-600" />
-                    Save Quote & Notes
-                  </span>
-                  <div className="flex items-center gap-1">
-                    {(['yellow', 'green', 'blue'] as const).map((color) => (
-                      <button
-                        key={color}
-                        type="button"
-                        onClick={() => setSelectedColor(color)}
-                        className={`w-4 h-4 rounded-full border cursor-pointer ${
-                          color === 'yellow' ? 'bg-amber-300' : color === 'green' ? 'bg-emerald-300' : 'bg-sky-300'
-                        } ${selectedColor === color ? 'ring-2 ring-slate-800' : 'border-slate-300'}`}
-                      />
-                    ))}
+              {/* Sidebar Header */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                    <Sparkles className="w-4 h-4" />
                   </div>
-                </div>
-
-                <form onSubmit={handleSaveHighlight} className="space-y-2">
-                  <textarea
-                    rows={2}
-                    value={highlightText}
-                    onChange={(e) => setHighlightText(e.target.value)}
-                    placeholder="Paste selected quote or key phrase here..."
-                    className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs focus:outline-hidden focus:ring-1 focus:ring-indigo-600"
-                  />
-                  <input
-                    type="text"
-                    value={highlightNote}
-                    onChange={(e) => setHighlightNote(e.target.value)}
-                    placeholder="Personal note (optional)..."
-                    className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs focus:outline-hidden focus:ring-1 focus:ring-indigo-600"
-                  />
-                  
-                  <div className="grid grid-cols-2 gap-1.5 pt-1">
-                    <button
-                      type="submit"
-                      className="py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors shadow-xs"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>Save Note</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      disabled={aiLoading || !highlightText.trim()}
-                      onClick={() => handleAiAnalyze()}
-                      className="py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors shadow-xs"
-                      title="Analyze with Qwen 2.5 AI"
-                    >
-                      {aiLoading ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      ) : (
-                        <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                      )}
-                      <span>AI Analyze</span>
-                    </button>
+                  <div>
+                    <h3 className="text-xs font-bold text-slate-900">AI Reading Companion</h3>
+                    <p className="text-[10px] text-slate-400">Contextual breakdown & passage summarizer</p>
                   </div>
-                </form>
-
-                {/* AI Mode Selector Tabs */}
-                <div className="flex items-center justify-between gap-1 pt-2 border-t border-slate-200/80 text-[10px]">
-                  {(
-                    [
-                      { id: 'explain', label: 'Explain' },
-                      { id: 'simplify', label: 'ELI5' },
-                      { id: 'summary', label: 'Summary' },
-                      { id: 'key_terms', label: 'Terms' },
-                    ] as const
-                  ).map((m) => (
-                    <button
-                      key={m.id}
-                      type="button"
-                      onClick={() => {
-                        setAiMode(m.id);
-                        if (highlightText.trim()) {
-                          handleAiAnalyze(highlightText, m.id);
-                        }
-                      }}
-                      className={`px-2 py-1 rounded-md font-bold transition-colors cursor-pointer ${
-                        aiMode === m.id
-                          ? 'bg-indigo-100 text-indigo-700'
-                          : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
-                      }`}
-                    >
-                      {m.label}
-                    </button>
-                  ))}
                 </div>
               </div>
 
-              {/* AI Analysis Insight Card */}
-              {(aiExplanation || aiLoading) && (
-                <div className="p-3.5 rounded-xl bg-linear-to-br from-indigo-50/90 to-purple-50/90 border border-indigo-200/80 shadow-xs space-y-2.5 animate-in fade-in">
-                  <div className="flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-1.5 font-bold text-indigo-900">
-                      <BrainCircuit className="w-4 h-4 text-indigo-600" />
-                      <span>AI Literary Insight</span>
-                      <span className="text-[10px] font-semibold text-indigo-600/80 uppercase px-1.5 py-0.2 bg-indigo-100 rounded">
-                        {aiMode}
-                      </span>
-                    </div>
+              {/* AI Passage Query Box */}
+              <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2.5">
+                <div className="flex items-center justify-between text-[11px] font-semibold text-slate-600">
+                  <span>Got stuck on a sentence or concept?</span>
+                </div>
 
-                    {aiExplanation && (
-                      <div className="flex items-center gap-1 text-slate-500">
-                        <button
-                          onClick={handleCopyAiExplanation}
-                          className="p-1 hover:text-indigo-600 cursor-pointer rounded transition-colors"
-                          title="Copy AI Explanation"
-                        >
-                          {copiedAiText ? (
-                            <Check className="w-3.5 h-3.5 text-emerald-600" />
-                          ) : (
-                            <Copy className="w-3.5 h-3.5" />
-                          )}
-                        </button>
-                        <button
-                          onClick={handleSaveAiToNote}
-                          className="p-1 hover:text-indigo-600 cursor-pointer rounded transition-colors text-[10px] font-bold text-indigo-700 bg-white border border-indigo-200 px-1.5"
-                          title="Save to study notes"
-                        >
-                          + Add to Notes
-                        </button>
-                      </div>
-                    )}
-                  </div>
+                <textarea
+                  rows={3}
+                  value={passageInput}
+                  onChange={(e) => setPassageInput(e.target.value)}
+                  placeholder="Paste any quote, sentence, or complex paragraph from the book here..."
+                  className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all resize-none"
+                />
 
+                <button
+                  type="button"
+                  disabled={aiLoading || !passageInput.trim()}
+                  onClick={() => handleAiExplain()}
+                  className="w-full py-2.5 bg-linear-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition-all shadow-xs"
+                >
                   {aiLoading ? (
-                    <div className="py-4 flex flex-col items-center justify-center gap-2 text-indigo-700 text-xs">
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      <p className="font-medium">Analyzing passage with Qwen 2.5 72B...</p>
-                    </div>
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-white" />
+                      <span>{LOADING_STATUSES[loadingStepIndex]}</span>
+                    </>
                   ) : (
-                    <div className="text-xs text-slate-800 leading-relaxed max-h-48 overflow-y-auto space-y-1.5 whitespace-pre-line bg-white/70 p-2.5 rounded-lg border border-indigo-100">
-                      {aiExplanation}
-                    </div>
+                    <>
+                      <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                      <span>Explain & Summarize</span>
+                    </>
                   )}
+                </button>
+              </div>
 
-                  {aiModelUsed && (
-                    <div className="text-[10px] text-slate-400 text-right">
-                      Powered by {aiModelUsed}
-                    </div>
-                  )}
+              {/* Interactive Loading State */}
+              {aiLoading && (
+                <div className="p-6 rounded-2xl bg-indigo-50/60 border border-indigo-100 flex flex-col items-center justify-center gap-3 text-center animate-in fade-in">
+                  <div className="relative flex items-center justify-center">
+                    <div className="w-12 h-12 rounded-full border-3 border-indigo-200 border-t-indigo-600 animate-spin" />
+                    <Sparkles className="w-5 h-5 text-indigo-600 absolute" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs font-bold text-indigo-900 transition-all duration-300">
+                      {LOADING_STATUSES[loadingStepIndex]}
+                    </p>
+                    <p className="text-[10px] text-indigo-500">Unpacking narrative & concepts for you</p>
+                  </div>
                 </div>
               )}
 
-              {/* Saved Notes List */}
-              <div className="space-y-2">
-                <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                  Your Saved Notes ({bookHighlights.length})
-                </h3>
-                {bookHighlights.length > 0 ? (
-                  <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
-                    {bookHighlights.map((h) => (
-                      <div
-                        key={h.id}
-                        className={`p-2.5 rounded-xl border text-xs relative group ${
-                          h.color === 'yellow'
-                            ? 'bg-amber-50/80 border-amber-200'
-                            : h.color === 'green'
-                            ? 'bg-emerald-50/80 border-emerald-200'
-                            : 'bg-sky-50/80 border-sky-200'
-                        }`}
+              {/* AI Explanation Result Box */}
+              {!aiLoading && aiExplanation && (
+                <div className="p-4 rounded-2xl bg-linear-to-br from-indigo-50/60 to-purple-50/40 border border-indigo-200/80 shadow-xs space-y-3 animate-in fade-in">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-indigo-950 flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+                      Analysis & Context
+                    </span>
+
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={handleCopyAiExplanation}
+                        className="p-1.5 rounded-lg bg-white/80 hover:bg-white border border-indigo-100 text-slate-600 hover:text-indigo-600 cursor-pointer transition-colors"
+                        title="Copy to clipboard"
                       >
-                        <p className="font-semibold text-slate-900 leading-snug">"{h.text}"</p>
-                        {h.note && <p className="text-slate-600 text-[11px] mt-1 italic">Note: {h.note}</p>}
-                        <div className="flex items-center justify-between mt-2 pt-1 border-t border-slate-200/60 text-[10px] text-slate-400">
-                          <span>{new Date(h.createdAt).toLocaleDateString()}</span>
-                          <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button
-                              onClick={() => {
-                                const cleanBookTag = book.title.replace(/\s+/g, '-');
-                                const postText = `"${h.text}" — from #${cleanBookTag} #LibroVerse`;
-                                onClose();
-                                navigate('/community');
-                                showToast(`Quote copied! Head over to Community to share it.`, 'info');
-                                navigator.clipboard?.writeText(postText);
-                              }}
-                              className="flex items-center gap-1 text-indigo-600 hover:text-indigo-800 font-bold cursor-pointer"
-                              title="Share Quote to Community Feed"
-                            >
-                              <span>Share</span>
-                            </button>
-                            <span>•</span>
-                            <button
-                              onClick={() => removeHighlight(h.id)}
-                              className="text-rose-500 hover:text-rose-700 cursor-pointer"
-                              title="Delete Quote"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+                        {copiedAiText ? (
+                          <Check className="w-3.5 h-3.5 text-emerald-600" />
+                        ) : (
+                          <Copy className="w-3.5 h-3.5" />
+                        )}
+                      </button>
+
+                      <button
+                        onClick={handleShareToCommunity}
+                        className="p-1.5 rounded-lg bg-white/80 hover:bg-white border border-indigo-100 text-slate-600 hover:text-indigo-600 cursor-pointer transition-colors"
+                        title="Share insights to Community"
+                      >
+                        <Share2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
-                ) : (
-                  <p className="text-xs text-slate-400 italic">
-                    No notes saved for this book yet. Highlight quotes to review anytime!
+
+                  <div className="text-xs text-slate-800 leading-relaxed max-h-60 overflow-y-auto space-y-2 whitespace-pre-line bg-white/80 p-3 rounded-xl border border-indigo-100/70 shadow-2xs font-normal">
+                    {aiExplanation}
+                  </div>
+                </div>
+              )}
+
+              {/* Empty placeholder guide when no query is active */}
+              {!aiLoading && !aiExplanation && (
+                <div className="p-4 rounded-2xl border border-dashed border-slate-200 text-center space-y-2">
+                  <HelpCircle className="w-6 h-6 text-slate-300 mx-auto" />
+                  <p className="text-xs font-semibold text-slate-600">Need help understanding?</p>
+                  <p className="text-[11px] text-slate-400 leading-relaxed">
+                    Paste any tricky terminology, dialogue, or complex paragraph from the left reader to get an instant breakdown.
                   </p>
-                )}
-              </div>
+                </div>
+              )}
 
               {/* Book Metadata Details */}
               <div className="pt-3 border-t border-slate-100 space-y-2 text-xs text-slate-600">
