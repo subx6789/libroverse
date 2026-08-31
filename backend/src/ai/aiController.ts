@@ -164,3 +164,97 @@ export const explainPassage = async (
     return next(error);
   }
 };
+
+interface HookRequestBody {
+  topic?: string;
+  bookTitle?: string;
+  draftText?: string;
+}
+
+export const generatePostHooks = async (
+  req: Request<{}, {}, HookRequestBody>,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { topic = "General Discussion", bookTitle, draftText = "" } = req.body;
+
+    const fallbackHooks = [
+      `🔥 Hot Take: What's one opinion about ${bookTitle ? `"${bookTitle}"` : "recent books"} that will have everyone in #${topic.replace(/\s+/g, "")} debating?`,
+      `🤔 Reading poll: If you had to recommend just ONE must-read for someone exploring #${topic.replace(/\s+/g, "")}, what would it be?`,
+      `💭 Unpopular realization: Did anyone else notice how the pacing in ${bookTitle ? `"${bookTitle}"` : "this book"} shifted completely halfway through? What were your thoughts?`,
+    ];
+
+    if (hf && config.hfToken) {
+      try {
+        const systemPrompt =
+          "You are a social media community strategist for a digital reading and book club platform. Generate exactly 3 irresistible, highly engaging discussion questions/hooks for readers. Return ONLY a valid JSON array of 3 strings, e.g. [\"Hook 1\", \"Hook 2\", \"Hook 3\"]. No markdown code block quotes, just pure JSON array.";
+
+        const userPrompt = `Topic / Channel: ${topic}\nReferenced Book: ${
+          bookTitle || "Not specified"
+        }\nUser Draft Note: "${draftText}"\n\nGenerate 3 distinct, thought-provoking conversation starters for our reader feed.`;
+
+        const response = await hf.chatCompletion({
+          model: config.hfModel,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
+          max_tokens: 350,
+          temperature: 0.7,
+        });
+
+        const rawContent = response.choices?.[0]?.message?.content?.trim() || "";
+        const jsonMatch = rawContent.match(/\[[\s\S]*\]/);
+
+        if (jsonMatch) {
+          try {
+            const parsed = JSON.parse(jsonMatch[0]);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              return res.status(200).json({
+                success: true,
+                model: config.hfModel,
+                hooks: parsed.slice(0, 3),
+                isLiveModel: true,
+              });
+            }
+          } catch (pErr) {
+            console.warn("JSON parse failed on LLM response", pErr);
+          }
+        }
+
+        // If JSON parsing wasn't clean, split lines
+        const lines = rawContent
+          .split("\n")
+          .map((l) => l.replace(/^\d+[\.\)]\s*/, "").replace(/^[-*]\s*/, "").replace(/^"/, "").replace(/"$/, "").trim())
+          .filter((l) => l.length > 15)
+          .slice(0, 3);
+
+        return res.status(200).json({
+          success: true,
+          model: config.hfModel,
+          hooks: lines.length >= 2 ? lines : fallbackHooks,
+          isLiveModel: true,
+        });
+      } catch (err: any) {
+        console.warn("Hugging Face hook generation fallback:", err?.message);
+        return res.status(200).json({
+          success: true,
+          model: `${config.hfModel} (Fallback Mode)`,
+          hooks: fallbackHooks,
+          isLiveModel: false,
+        });
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      model: "LibroVerse AI Heuristic Engine",
+      hooks: fallbackHooks,
+      isLiveModel: false,
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+

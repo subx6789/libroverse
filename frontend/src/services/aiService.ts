@@ -24,3 +24,23 @@ export const explainPassageAPI = async (
   const response = await api.post<ExplainResponse>('/ai/explain', payload);
   return response.data;
 };
+
+export interface GenerateHooksPayload {
+  topic?: string;
+  bookTitle?: string;
+  draftText?: string;
+}
+
+export interface GenerateHooksResponse {
+  success: boolean;
+  model: string;
+  hooks: string[];
+  isLiveModel: boolean;
+}
+
+export const generateHooksAPI = async (
+  payload: GenerateHooksPayload
+): Promise<GenerateHooksResponse> => {
+  const response = await api.post<GenerateHooksResponse>('/ai/generate-hooks', payload);
+  return response.data;
+};

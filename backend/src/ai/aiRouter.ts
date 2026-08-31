@@ -1,9 +1,10 @@
 import express from "express";
-import { explainPassage } from "./aiController";
+import { explainPassage, generatePostHooks } from "./aiController";
 
 const aiRouter = express.Router();
 
-// Route: POST /api/ai/explain
+// Routes
 aiRouter.post("/explain", explainPassage);
+aiRouter.post("/generate-hooks", generatePostHooks);
 
 export default aiRouter;

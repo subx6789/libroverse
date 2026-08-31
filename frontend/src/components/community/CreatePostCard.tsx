@@ -7,6 +7,9 @@ import {
   Loader2,
   AtSign,
   Hash,
+  Sparkles,
+  ChevronRight,
+  MessageSquareQuote,
 } from "lucide-react";
 import { usePostStore } from "../../store/usePostStore";
 import { useUserStore } from "../../store/useUserStore";
@@ -15,6 +18,7 @@ import { useToast } from "../ui/ToastContext";
 import { compressImage, compressVideo } from "../../utils/mediaCompressor";
 import { HighlightedTextarea } from "./HighlightedTextarea";
 import { MentionAutocomplete } from "./MentionAutocomplete";
+import { generateHooksAPI } from "../../services/aiService";
 
 interface CreatePostCardProps {
   onOpenAuth: () => void;
@@ -34,6 +38,11 @@ export const CreatePostCard: React.FC<CreatePostCardProps> = ({
       ? selectedTopic
       : channels[0] || "General Discussion",
   );
+
+  // AI Hook Generator State
+  const [isGeneratingHooks, setIsGeneratingHooks] = useState(false);
+  const [suggestedHooks, setSuggestedHooks] = useState<string[]>([]);
+  const [showHooksTray, setShowHooksTray] = useState(false);
 
   useEffect(() => {
     fetchChannels();
@@ -64,6 +73,39 @@ export const CreatePostCard: React.FC<CreatePostCardProps> = ({
   const [showMentionMenu, setShowMentionMenu] = useState(false);
   const [isSearchingMentions, setIsSearchingMentions] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const handleSparkDiscussion = async () => {
+    setIsGeneratingHooks(true);
+    setShowHooksTray(true);
+    try {
+      // Extract any book name tagged in the content like @Dune or #Dune
+      const bookTagMatch = content.match(/[@#]([a-zA-Z0-9_-]+)/);
+      const taggedBook = bookTagMatch ? bookTagMatch[1] : undefined;
+
+      const res = await generateHooksAPI({
+        topic,
+        bookTitle: taggedBook,
+        draftText: content,
+      });
+
+      setSuggestedHooks(res.hooks || []);
+      showToast("Qwen 2.5 suggested 3 discussion starters!", "success");
+    } catch (err: any) {
+      showToast("Failed to generate AI hooks. Please try again.", "error");
+    } finally {
+      setIsGeneratingHooks(false);
+    }
+  };
+
+  const handleApplyHook = (hook: string) => {
+    setContent((prev) => {
+      const cleanPrev = prev.trim();
+      return cleanPrev ? `${cleanPrev}\n\n${hook}` : hook;
+    });
+    setShowHooksTray(false);
+    showToast("Hook added to your post draft!", "info");
+    textareaRef.current?.focus();
+  };
 
   // Detect "@" query in real-time
   useEffect(() => {
@@ -353,9 +395,65 @@ export const CreatePostCard: React.FC<CreatePostCardProps> = ({
           );
         })()}
 
+        {/* Suggested AI Hooks Tray */}
+        {showHooksTray && (
+          <div className="p-3 bg-linear-to-r from-purple-50 via-indigo-50 to-pink-50 border border-indigo-200/80 rounded-xl space-y-2 animate-in fade-in">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-900">
+                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                <span>AI Spark Conversation Starters</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowHooksTray(false)}
+                className="text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            {isGeneratingHooks ? (
+              <div className="flex items-center justify-center gap-2 py-3 text-xs text-indigo-700">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Qwen 2.5 is brainstorming viral discussion hooks...</span>
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                {suggestedHooks.map((hk, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => handleApplyHook(hk)}
+                    className="w-full text-left p-2 bg-white/90 hover:bg-white border border-indigo-100 hover:border-indigo-300 rounded-lg text-xs font-medium text-slate-800 flex items-center justify-between group transition-all cursor-pointer shadow-2xs"
+                  >
+                    <span className="flex-1 pr-2 leading-relaxed">{hk}</span>
+                    <ChevronRight className="w-3.5 h-3.5 text-indigo-400 group-hover:text-indigo-600 group-hover:translate-x-0.5 transition-all shrink-0" />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Toolbar & Fast Post Button */}
         <div className="flex items-center justify-between pt-2 border-t border-slate-100">
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {/* AI Spark Discussion Button */}
+            <button
+              type="button"
+              onClick={handleSparkDiscussion}
+              disabled={isGeneratingHooks}
+              className="px-2.5 py-1.5 rounded-md text-xs font-bold bg-linear-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white flex items-center gap-1.5 cursor-pointer transition-all shadow-2xs hover:shadow-xs"
+              title="Generate viral discussion hooks with Qwen 2.5 AI"
+            >
+              {isGeneratingHooks ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+              )}
+              <span>Spark Discussion</span>
+            </button>
+
             {/* Mention trigger button */}
             <button
               type="button"
